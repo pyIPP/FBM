@@ -12,10 +12,10 @@ except:
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
-import plot_sections, read_fbm
+import read_fbm
 
 
-def read_birth(birth_file, topframe=None):
+def read_birth(birth_file, topframe=None, tok='AUGD'):
 
 
     print('Reading %s' %birth_file)
@@ -29,19 +29,24 @@ def read_birth(birth_file, topframe=None):
     runid = tmp[0]
     t_id  = birthfile.split('cdf')[-1]
 
+# Get 
     fbm_file = birth_file.replace('birth.cdf%s' %t_id, 'fi_%s.cdf' %t_id)
     if not os.path.isfile(fbm_file):
         print('%s not found' %fbm_file)
-        fbm = None
     else:
         fbm = read_fbm.READ_FBM(fbm_file)
-
+        ntheta = 101
+        Rmaj = fbm.rsurf[0, 0]
+        Rtor_in  = np.min(fbm.rsurf)
+        Rtor_out = np.max(fbm.rsurf)
+        phi_tor = np.linspace(0, 2*np.pi, ntheta)
+        cosp = np.cos(phi_tor)
+        sinp = np.sin(phi_tor)
+ 
     cv = netcdf.netcdf_file(birth_file, 'r', mmap=False).variables
 
     print('PLOT_BIRTH')
     print(birth_file)
-
-    comp = ('full', 'half', '1/3')
 
     mcl = cv['mclabel'].data
     mc_label = "".join(mcl[0]).strip()
@@ -64,66 +69,59 @@ def read_birth(birth_file, topframe=None):
     t_birth = cv['bs_time_%s'  %mc_label][0]
     j_nbi   = cv['bs_ib_%s'    %mc_label].data
 
+    phi_dep = np.radians(tor_ang)
+    xtop = Rj*np.cos(phi_dep)
+    ytop = Rj*np.sin(phi_dep)
     n_birth = len(Rj)
     print('# of MC particles: %d' %n_birth)
     src_arr = np.unique(j_nbi)
+    
     print('Sources: ', src_arr)
 
 # Vessel compoments for plot
 
-#    try:
-    if True:
+    if tok == 'AUGD':
         import plot_aug
         xlin, ylin, rlin, zlin = plot_aug.nbi_plot(nbis=src_arr, runid=runid, raug=False)
-#    except:
-#        pass
 
-    Efull = {}
+    j_comp = np.zeros(n_birth, dtype=np.int32)
+    ind_nbi = {}
     for jsrc in src_arr:
-        index = np.where(j_nbi == jsrc )
-        Efull[jsrc] = np.max(Einj[index])
+        (index, ) = np.where(j_nbi == jsrc)
+        E = np.max(Einj[index])
+        j_comp[index] = np.int32(np.max(E)/Einj[index] + 1e-3)
+        ind_nbi[jsrc] = index
+ 
+    comp_arr = np.unique(j_comp)
+    print('Energy components', comp_arr)
+    comp_lbl = {1: 'Full', 2: ' Half', 3: 'Third'}
+    n_src  = len(src_arr)
+    n_comp = len(comp_arr)
 
 # Determine 1/2 and 1/3 fractions
 
-    mix_lbl = np.zeros(n_birth, dtype='|S4')
-    mix_lbl[:] = comp[0]
-    for jpart in range(n_birth):
-        if Einj[jpart] <= 0.51*Efull[j_nbi[jpart]]:
-            mix_lbl[jpart] = comp[1]
-        if Einj[jpart] <= 0.34*Efull[j_nbi[jpart]]:
-            mix_lbl[jpart] = comp[2]
-
     nr = 141
     nz = 101
-    n_comp = 3
     Rmin = 100
     Rmax = 240
     zmin = -100
     zmax = 100
     R_grid = np.linspace(Rmin, Rmax, nr)
     z_grid = np.linspace(zmin, zmax, nz)
-    deltaR = R_grid[1] - R_grid[0]
-    deltaz = z_grid[1] - z_grid[0]
-    dep_matrix={}
+    dep_matrix = {}
+
     for jsrc in src_arr:
         dep_matrix[jsrc] = {}
-        for jcomp in comp:
-            dep_matrix[jsrc][jcomp] = np.zeros((nr, nz))
-
-    for jpart in range(n_birth):
-        jsrc = j_nbi[jpart]
-        jcomp = mix_lbl[jpart]
-        Rpart = Rj[jpart]
-        zpart = zj[jpart]
-        if (Rpart > Rmin) and (Rpart < Rmax) and (zpart > zmin) and (zpart < zmax):
-            jr = int((Rpart - Rmin)/deltaR)
-            jz = int((zpart - zmin)/deltaz)
-            dep_matrix[jsrc][jcomp][jr, jz] += weight[jpart]
+        for jcomp in comp_arr:
+            ind = (j_nbi == jsrc) & (j_comp == jcomp)
+            dep_matrix[jsrc][jcomp], Redge, zedge = \
+            np.histogram2d(Rj[ind], zj[ind], bins=[nr, nz], \
+            range=[[Rmin, Rmax], [zmin, zmax]], weights = weight[ind])
 
     res_R = {}
     for jsrc in src_arr:
         res_R[jsrc] = {}
-        for jcomp in comp:
+        for jcomp in comp_arr:
             dep_R = np.sum(dep_matrix[jsrc][jcomp], axis=1) # z-sum
             res_R[jsrc][jcomp] = np.cumsum(dep_R)
             print('Deposited particles for source %d, component %s: %10.3e/s' %(jsrc, jcomp, res_R[jsrc][jcomp][-1]) )
@@ -135,27 +133,35 @@ def read_birth(birth_file, topframe=None):
 # Plots
 #------
 
-# Above view
+# AUG 
+    if tok == 'AUGD':
+        import sys
+        sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib/')
+        import get_gc
 
-    phi_dep = np.radians(tor_ang)
-    cols = ('r', 'b', 'g', 'm', 'y')
+        gc_r, gc_z = get_gc.get_gc()
+        tor_d = plot_aug.STRUCT().tor_old
+        m2cm = 100.
+        xpol_lim = (90, 230)
+        ypol_lim = (-125, 125)
+        xtop_lim = (-600, 400)
+    else:
+        xpol_lim = (30, 330)
+        ypol_lim = (-200, 200)
+        xtop_lim = (-800, 600)
 
-# Component by component: v_par/v_perp
+    Rlbl = 'R [cm]'
+    zlbl = 'z [cm]'
+    fsize = 12
+    colors = ('r', 'b', 'g', 'm', 'y')
 
     nrows = 2
     ncols = n_comp + 1
 
-    delta_pit = 0.2
-
-    jfig = 12
+    n_pitch = 5
+    pitch_edges = np.linspace(0, 1, n_pitch+1)
 
     xgrid, ygrid = np.meshgrid(R_grid, z_grid)
-
-#------
-# Plots
-#------
-
-    fsize = 12
 
 # One tab for each source
 
@@ -166,7 +172,7 @@ def read_birth(birth_file, topframe=None):
     nbsource = ttk.Notebook(topframe, name='nb source')
     nbsource.pack(side=tk.TOP, fill=tk.X)
 
-    for j, jsrc in enumerate(src_arr):
+    for jnb, jsrc in enumerate(src_arr):
         frame_source = tk.Frame(nbsource)
         lbl = ' NBI #%d ' %jsrc
 
@@ -197,63 +203,92 @@ def read_birth(birth_file, topframe=None):
         axpol = fig_birth.add_subplot(nrows, ncols, jsplot+ncols, aspect='equal')
         axpol.set_title('All energy components', fontsize=fsize)
 
-        jcol=0
-        for jcomp in comp:
-            ind = np.where((mix_lbl == jcomp) & (j_nbi == jsrc))
-            axtop.plot(Rj[ind]*np.cos(phi_dep[ind]), Rj[ind]*np.sin(phi_dep[ind]), cols[jcol]+'o', label=jcomp)
-            axpol.plot(Rj[ind], zj[ind], '%so' %cols[jcol], label=jcomp)
-            jcol += 1
+# Birth locations
+
+        for jcol, jcomp in enumerate(comp_arr):
+            ind = (j_comp == jcomp) & (j_nbi == jsrc)
+            axtop.plot(xtop[ind], ytop[ind], '%so' %colors[jcol], label=comp_lbl[jcomp])
+            axpol.plot(Rj[ind]  , zj[ind]  , '%so' %colors[jcol], label=comp_lbl[jcomp])
+
         axtop.legend(loc=2, numpoints=1, prop={'size': 8})
         axpol.legend(loc=2, numpoints=1, prop={'size': 8})
 
-        if fbm is not None:
-            plot_sections.tor_sect(axtop, fbm.rsurf)
-        axtop.plot(xlin[j], ylin[j], 'g-', linewidth=2.5)
-        plot_sections.pol_sect(axpol)
-        plot_sections.pol_cells(axpol, fbm)
-        try:
-            axpol.plot(rlin[j], zlin[j], 'g-', linewidth=2.5)
-        except:
-            pass
+# Tokamak components
+  
+        axpol.set_xlabel(Rlbl, fontsize=fsize)
+        axpol.set_ylabel(zlbl, fontsize=fsize)
+        axpol.set_xlim(xpol_lim)
+        axpol.set_ylim(ypol_lim)
+        axtop.set_xlim(xtop_lim)
+
+        if 'gc_r' in locals():
+            for key in gc_r.keys():
+                axpol.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
+        if 'tor_d' in locals():
+            for tor_pl in tor_d.values():
+                axtop.plot(m2cm*tor_pl.x, m2cm*tor_pl.y, 'b-')
+        
+        if 'fbm' in locals():
+            axtop.plot(Rtor_in *cosp, Rtor_in *sinp, 'r-')
+            axtop.plot(Rtor_out*cosp, Rtor_out*sinp, 'r-')
+            axtop.plot(Rmaj*cosp, Rmaj*sinp, 'r--')
+
+            for irho in range(fbm.rsurf.shape[0]):
+                axpol.plot(fbm.rsurf[irho, :], fbm.zsurf[irho, :], 'r-')
+            for jbar, myr in enumerate(fbm.rbar):
+                axpol.plot(myr, fbm.zbar[jbar], 'r-')
+
+        if 'xlin' in locals():
+            axtop.plot(xlin[jnb], ylin[jnb], 'g-', linewidth=2.5)
+            axpol.plot(rlin[jnb], zlin[jnb], 'g-', linewidth=2.5)
 
 # For each species overplot 5 pitch angle range
 
-        jcol = 0
         jsplot = 2
 
-        for jcomp in comp:
+        for jcomp in comp_arr:
             axtop = fig_birth.add_subplot(nrows, ncols, jsplot      , aspect='equal')
             axpol = fig_birth.add_subplot(nrows, ncols, jsplot+ncols, aspect='equal')
 
             axtop.set_title('%s energy' %jcomp, fontsize=fsize)
             axpol.set_title('%s energy' %jcomp, fontsize=fsize)
 
-            p1 = 0
-            jcol = 0
-            while p1 <= 1-delta_pit:
-                p2 = p1 + delta_pit
-                ind = np.where((mix_lbl == jcomp) & (j_nbi == jsrc) & \
-                               (pitch > p1) & (pitch < p2)) 
-                axtop.plot(Rj[ind]*np.cos(phi_dep[ind]), \
-                           Rj[ind]*np.sin(phi_dep[ind]), '%so' %cols[jcol], \
-                           label='%3.1f < p.a. < %3.1f' %(p1, p2))
-                axpol.plot(Rj[ind], zj[ind], '%so' %cols[jcol], \
-                           label='%3.1f < p.a. < %3.1f' %(p1, p2))
-                p1 += delta_pit
-                jcol += 1
+            axpol.set_xlabel(Rlbl, fontsize=fsize)
+            axpol.set_ylabel(zlbl, fontsize=fsize)
+            axpol.set_xlim(xpol_lim)
+            axpol.set_ylim(ypol_lim)
+            axtop.set_xlim(xtop_lim)
 
-            if fbm is not None:
-                plot_sections.tor_sect(axtop, fbm.rsurf)
-            try:
-                axtop.plot(xlin[j], ylin[j], 'g-', linewidth=2.5)
-            except:
-                pass
-            plot_sections.pol_sect(axpol)
-            plot_sections.pol_cells(axpol, fbm)
-            try:
-                axpol.plot(rlin[j], zlin[j], 'g-', linewidth=2.5)
-            except:
-                pass
+            ind1 = (j_comp == jcomp) & (j_nbi == jsrc)
+            for jpitch in range(n_pitch):
+                p1 = pitch_edges[jpitch]
+                p2 = pitch_edges[jpitch+1]
+                ind = ind1 & (pitch >  p1) & (pitch <= p2)
+                axtop.plot(xtop[ind], ytop[ind], '%so' %colors[jpitch], \
+                           label='%3.1f < p.a. < %3.1f' %(p1, p2))
+                axpol.plot(Rj[ind], zj[ind], '%so' %colors[jpitch], \
+                           label='%3.1f < p.a. < %3.1f' %(p1, p2))
+
+            if 'gc_r' in locals():
+                for key in gc_r.keys():
+                    axpol.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
+            if 'tor_pl' in locals():
+                for tor_pl in tor_d.values():
+                    axtop.plot(m2cm*tor_pl.x, m2cm*tor_pl.y, 'b-')
+
+            if 'fbm' in locals():
+                axtop.plot(Rtor_in *cosp, Rtor_in *sinp, 'r-')
+                axtop.plot(Rtor_out*cosp, Rtor_out*sinp, 'r-')
+                axtop.plot(Rmaj*cosp, Rmaj*sinp, 'r--')
+
+                for irho in range(fbm.rsurf.shape[0]):
+                    axpol.plot(fbm.rsurf[irho, :], fbm.zsurf[irho, :], 'r-')
+                for jbar, myr in enumerate(fbm.rbar):
+                    axpol.plot(myr, fbm.zbar[jbar], 'r-')
+
+            if 'xlin' in locals():
+                axtop.plot(xlin[jnb], ylin[jnb], 'g-', linewidth=2.5)
+                axpol.plot(rlin[jnb], zlin[jnb], 'g-', linewidth=2.5)
 
             axtop.legend(loc=2, numpoints=1, prop={'size': 8})
             axpol.legend(loc=2, numpoints=1, prop={'size': 8})
@@ -262,7 +297,7 @@ def read_birth(birth_file, topframe=None):
         toolbar = NavigationToolbar2TkAgg(can_birth, frame_birth)
         toolbar.update()
 
-#-------------------------        
+#-------------------------
 # Deposition & attenuation
 #-------------------------
 
@@ -275,28 +310,33 @@ def read_birth(birth_file, topframe=None):
         frame_pol.pack_propagate(0)
         can_pol = FigureCanvasTkAgg(fig_pol, master=frame_pol)
         can_pol._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-        fig_pol.subplots_adjust(left=0.05, bottom=0.1, right=0.98, \
-                                top=0.92)
+        fig_pol.subplots_adjust(left=0.05, bottom=0.1, right=0.98, top=0.92)
 
         fig_pol.text(0.33, 0.95, '%s, t =%6.3f s' %(runid, t_birth), ha='center')
 # 2D deposition, poloidal section
         jsplot = 1
-        for jcomp in comp:
+        for jcomp in comp_arr:
             zgrid = dep_matrix[jsrc][jcomp].T
             ind = np.where(zgrid == 0)
             zgrid[ind] = None
             axpol = fig_pol.add_subplot(1, n_comp, jsplot, aspect='equal')
 
-            axpol.set_title('%s energy' %jcomp, fontsize=fsize)
+            axpol.set_title('%s energy' %comp_lbl[jcomp], fontsize=fsize)
+            axpol.set_xlim(xpol_lim)
+            axpol.set_ylim(ypol_lim)
             ctr = axpol.contourf(xgrid, ygrid, zgrid)
             fig_pol.colorbar(ctr, shrink=0.9, aspect=10)
-
-            plot_sections.pol_sect(axpol)
-            plot_sections.pol_cells(axpol, fbm)
-            try:
-                axpol.plot(rlin[j], zlin[j], 'g-', linewidth=2.5)
-            except:
-                pass
+            if 'gc_r' in locals():
+                for key in gc_r.keys():
+                    axpol.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
+            if 'fbm' in locals():
+                for irho in range(fbm.rsurf.shape[0]):
+                    axpol.plot(fbm.rsurf[irho, :], fbm.zsurf[irho, :], 'r-')
+                for jbar, myr in enumerate(fbm.rbar):
+                    axpol.plot(myr, fbm.zbar[jbar], 'r-')
+            if 'xlin' in locals():
+                axtop.plot(xlin[jnb], ylin[jnb], 'g-', linewidth=2.5)
+                axpol.plot(rlin[jnb], zlin[jnb], 'g-', linewidth=2.5)
 
             jsplot += 1
 
@@ -316,9 +356,9 @@ def read_birth(birth_file, topframe=None):
                                 top=0.9)
 
         jsplot = 1
-        for jcomp in comp:
+        for jcomp in comp_arr:
             axatt = fig_att.add_subplot(1, n_comp, jsplot)
-            axatt.set_title('%s energy' %jcomp, fontsize=fsize)
+            axatt.set_title('%s energy' %comp_lbl[jcomp], fontsize=fsize)
             axatt.set_xlabel('R [cm]', fontsize=fsize)
             axatt.set_ylabel('NBI attenuation', fontsize=fsize)
             axatt.plot(R_grid, res_R[jsrc][jcomp])
@@ -337,7 +377,7 @@ def read_birth(birth_file, topframe=None):
 
 if __name__ == "__main__":
 
-    fbirth = '/afs/ipp/home/g/git/tr_client/AUGD/29795/A05/29795A05_birth.cdf1'
+    fbirth = '/afs/ipp/home/g/git/tr_client/AUGD/29783/A01/29783A01_birth.cdf1'
     birth_tk = tk.Tk()
     birth_tk.title('Birth location')
     birth_tk.geometry('1500x940')
