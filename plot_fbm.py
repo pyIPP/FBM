@@ -11,7 +11,7 @@ except:
     from tkinter import filedialog as tkfd
     from tkinter import messagebox as tkmb
 
-import read_fbm, plot_birth
+import read_ac, read_fbm, plot_birth
 import tkhyper
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 from matplotlib.figure import Figure
@@ -30,7 +30,6 @@ fsize = 12
 try:
     sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib/')
     import get_gc
-
     gc_r, gc_z = get_gc.get_gc()
     m2cm = 100.
     xpol_lim = (90, 230)
@@ -108,12 +107,12 @@ class FBM:
         can_pol._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
         axpol = fig_pol.add_subplot(1, 1, 1, aspect='equal')
-
+        axpol.set_xlim(xpol_lim)
+        axpol.set_ylim(ypol_lim)
         if 'gc_r' in globals():
             for key in gc_r.keys():
                 axpol.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
-        axpol.set_xlim(xpol_lim)
-        axpol.set_ylim(ypol_lim)
+
         self.can_fbm   = {}
         self.cell_mark = {}
         self.fig_cell = {}
@@ -266,11 +265,10 @@ class FBM:
         if 'gc_r' in globals():
             for key in gc_r.keys():
                 ax.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
-        if hasattr(self, 'fbmr'):
-            for irho in range(self.fbmr.rsurf.shape[0]):
-                ax.plot(self.fbmr.rsurf[irho, :], self.fbmr.zsurf[irho, :], 'r-')
-            for jbar, myr in enumerate(self.fbmr.rbar):
-                ax.plot(myr, self.fbmr.zbar[jbar], 'r-')
+        for irho in range(self.fbmr.rsurf.shape[0]):
+            ax.plot(self.fbmr.rsurf[irho, :], self.fbmr.zsurf[irho, :], 'r-')
+        for jbar, myr in enumerate(self.fbmr.rbar):
+            ax.plot(myr, self.fbmr.zbar[jbar], 'r-')
 
 # Selected point
 
@@ -300,7 +298,8 @@ class FBM:
 
         dir_init = os.getenv('HOME')+'/tr_client/AUGD'
         self.ffbm = tkfd.askopenfilename(  initialdir=dir_init, filetypes= \
-                                        (("FBM", "*.cdf"),)    )
+                                        (("FBM", "*.DATA*"),)    )
+#                                        (("FBM", "*.cdf"),)    ) #read_fbm
 
         print(self.ffbm)
 
@@ -314,12 +313,17 @@ class FBM:
 
         fbmdir, fbmfile  = os.path.split(self.ffbm)
 
-        tmp = fbmfile.split('_')
+#        tmp = fbmfile.split('_') #read_fbm
+#        runid = tmp[0]
+#        t_id  = tmp[2].split('.')[0]
+#        self.fbmr = read_fbm.READ_FBM(self.ffbm)
+
+        tmp = fbmfile.split('.')
         runid = tmp[0]
-        t_id  = tmp[2].split('.')[0]
+        t_id = tmp[1][4:]
+        self.fbmr = read_ac.READ_FBM(self.ffbm)
 
 # Read FBM 
-        self.fbmr = read_fbm.READ_FBM(self.ffbm)
 
         self.species = []
         for spc_lbl in self.fbmr.int_en_pit_frac_trap.keys():
