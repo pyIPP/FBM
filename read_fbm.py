@@ -117,8 +117,8 @@ class READ_FBM:
 
             self.fdist[spc_lbl] = 0.5*cv['F_%s' %spc_lbl].data
             print(cv['F_%s' %spc_lbl].units)
-            self.a_d[spc_lbl]   =     cv['A_%s' %spc_lbl].data
-            self.e_d[spc_lbl]   =     cv['E_%s' %spc_lbl].data
+            self.a_d[spc_lbl] = cv['A_%s' %spc_lbl].data
+            self.e_d[spc_lbl] = cv['E_%s' %spc_lbl].data
             fbm = self.fdist[spc_lbl]
             dE = np.diff(cv['EB_%s' %spc_lbl].data)
             dpa = np.diff(cv['AB_%s' %spc_lbl].data)

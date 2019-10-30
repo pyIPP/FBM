@@ -11,7 +11,7 @@ except:
     from tkinter import filedialog as tkfd
     from tkinter import messagebox as tkmb
 
-import read_fbm, plot_birth, plot_sections
+import read_fbm, plot_birth
 import tkhyper
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 from matplotlib.figure import Figure
@@ -98,9 +98,21 @@ class FBM:
         axpol = fig_pol.add_subplot(1, 1, 1, aspect='equal')
 
         try:
-            plot_sections.pol_sect(axpol)
+            sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib/')
+            import get_gc
+
+            gc_r, gc_z = get_gc.get_gc()
+            m2cm = 100.
+            xpol_lim = (90, 230)
+            ypol_lim = (-125, 125)
+            xtop_lim = (-600, 400)
         except:
-            pass
+            xpol_lim = (30, 330)
+            ypol_lim = (-200, 200)
+            xtop_lim = (-800, 600)
+        if 'gc_r' in locals():
+            for key in gc_r.keys():
+                axpol.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
 
         self.can_fbm   = {}
         self.cell_mark = {}
@@ -249,8 +261,14 @@ class FBM:
 
         ax = fig.add_subplot(1, 1, 1, aspect='equal')
 
-        plot_sections.pol_sect(ax)
-        plot_sections.pol_cells(ax, self.fbmr)
+        if 'gc_r' in locals():
+            for key in gc_r.keys():
+                ax.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
+        if hasattr(self, 'fbmr'):
+            for irho in range(self.fbmr.rsurf.shape[0]):
+                ax.plot(self.fbmr.rsurf[irho, :], self.fbmr.zsurf[irho, :], 'r-')
+            for jbar, myr in enumerate(self.fbmr.rbar):
+                ax.plot(myr, self.fbmr.zbar[jbar], 'r-')
 
 # Selected point
 
