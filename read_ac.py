@@ -3,21 +3,26 @@ import numpy as np
 import matplotlib.pylab as plt
 import parse_ac, mom2rz
 
+iso_d  = {(1, 1): 'H', (2, 1) : 'D', (3, 1): 'T', (3, 2): 'HE3', (4, 2): 'HE4'}
 
 class READ_FBM:
 
 
-    def __init__(self, f_ac):
+    def __init__(self, f_ac, gc=True):
 
-
-        list_read = ['BMVOL', 'EFBM', 'EFBMB', 'XXKSID', 'FBM', 'RSURF1', 'YSURF1', 'RMC', 'YMC']
+# FBM for GC, FBM_PART for real position
+        if gc:
+            fbm_lbl = 'FBM'
+        else:
+            fbm_lbl = 'FBM_PTCL'
+        list_read = ['BMVOL', 'EFBM', 'EFBMB', 'XXKSID', fbm_lbl, 'RSURF1', 'YSURF1', 'RMC', 'YMC', 'XZBEAMS', 'ABEAMS', 'NLFPROD']
 
         fbm_d = parse_ac.parse_ac(f_ac, list_read=list_read)
 
 # Dimensions
         n_cells = fbm_d['NFBZNSI']
         n_pit   = fbm_d['NZNBMA']
-        n_E     = fbm_d['NZNBME']
+        n_E     = fbm_d['NZNBME'] #NZNBMEA divided for species
         n_zones = fbm_d['NZONE_FB']
         n_mom   = fbm_d['NMOM']
 
@@ -121,49 +126,69 @@ class READ_FBM:
         self.dens_vol   = {}
         self.trap_vol   = {}
 
-        spc_lbl = 'D_NBI'
-        self.e_d[spc_lbl] = fbm_d['EFBM'] [:, 0]
-        self.a_d[spc_lbl] = fbm_d['XXKSID']
-        dE  = np.diff(fbm_d['EFBMB'][:, 0])
-        dpa = np.repeat(self.a_d[spc_lbl][1] - self.a_d[spc_lbl][0], n_pit) # assuming regular p.a, grid
-        dpa_dE = np.outer(dpa, dE)
+        n_spec = len(fbm_d['ABEAMS' ])
 
-        fbm = 0.5*fbm_d['FBM'][:, :, :, 0].transpose((2, 1, 0))
-        self.fdist[spc_lbl] = fbm
+        for jspec in range(n_spec):
+            if jspec < fbm_d['NSBEAM']:
+                if fbm_d['NLFPROD'][jspec]:
+                    prod_lbl = 'FUS'
+                else:
+                    prod_lbl = 'NBI'
+            else:
+                prod_lbl = 'RFI'
 
-        fbm_trap = np.zeros((n_cells, n_pit, n_E))
-        self.trap_pit[spc_lbl] = 1. - rmaj_min[rho_lab[:]]/self.r2d[:]
-        for jcell in range(n_cells):
-            ind_trap = (self.a_d[spc_lbl]**2 <= self.trap_pit[spc_lbl][jcell])
-            fbm_trap[jcell, ind_trap, :] = fbm[jcell, ind_trap, :]
+            mass   = int(fbm_d['ABEAMS' ][jspec] + 0.2)
+            charge = int(fbm_d['XZBEAMS'][jspec] + 0.001)
+
+            iso_lbl  = iso_d[(mass, charge)]
+
+            spc_lbl = '%s_%s' %(iso_lbl, prod_lbl)
+            print(spc_lbl)
+            self.e_d[spc_lbl] = fbm_d['EFBM'] [:, jspec]
+            self.a_d[spc_lbl] = fbm_d['XXKSID']
+            dE  = np.diff(fbm_d['EFBMB'][:, jspec])
+            dpa = np.repeat(self.a_d[spc_lbl][1] - self.a_d[spc_lbl][0], n_pit) # assuming regular p.a, grid
+            dpa_dE = np.outer(dpa, dE)
+
+            if gc:
+                fbm = 0.5*fbm_d[fbm_lbl][:, :, :, jspec].transpose((2, 1, 0)) #4th: species
+            else:
+                fbm = 0.5*fbm_d[fbm_lbl][:, :, :, jspec, 0].transpose((2, 1, 0))
+            self.fdist[spc_lbl] = fbm
+
+            fbm_trap = np.zeros((n_cells, n_pit, n_E))
+            self.trap_pit[spc_lbl] = 1. - rmaj_min[rho_lab[:]]/self.r2d[:]
+            for jcell in range(n_cells):
+                ind_trap = (self.a_d[spc_lbl]**2 <= self.trap_pit[spc_lbl][jcell])
+                fbm_trap[jcell, ind_trap, :] = fbm[jcell, ind_trap, :]
 
 # Integrals
 
-        self.int_en_pit[spc_lbl] = np.tensordot(fbm, dpa_dE, axes=((1, 2), (0, 1)))
-        int_en_pit_trap = np.tensordot(fbm_trap, dpa_dE, axes=((1, 2), (0, 1)))
+            self.int_en_pit[spc_lbl] = np.tensordot(fbm, dpa_dE, axes=((1, 2), (0, 1)))
+            int_en_pit_trap = np.tensordot(fbm_trap, dpa_dE, axes=((1, 2), (0, 1)))
 
-        self.dens_zone[spc_lbl] = np.zeros((n_zones, n_pit, n_E))
-        self.trap_zone[spc_lbl] = np.zeros((n_zones, n_pit, n_E))
+            self.dens_zone[spc_lbl] = np.zeros((n_zones, n_pit, n_E))
+            self.trap_zone[spc_lbl] = np.zeros((n_zones, n_pit, n_E))
 
-        self.dens_vol[spc_lbl] = np.tensordot(fbm     , bmvol, axes=(0, 0))/np.sum(bmvol)
-        self.trap_vol[spc_lbl] = np.tensordot(fbm_trap, bmvol, axes=(0, 0))/np.sum(bmvol)
-        vol_zone = np.zeros(n_zones)
-        for jrho in range(n_zones):
-            indrho = (rho_lab == jrho)
-            vol_zone[jrho] = np.sum(bmvol[indrho])
-            self.dens_zone[spc_lbl][jrho, :, :] = np.tensordot(fbm[     indrho, :, :], bmvol[indrho], axes = (0, 0))
-            self.trap_zone[spc_lbl][jrho, :, :] = np.tensordot(fbm_trap[indrho, :, :], bmvol[indrho], axes = (0, 0))
-            self.dens_zone[spc_lbl][jrho, :, :] *= 1/vol_zone[jrho]
-            self.trap_zone[spc_lbl][jrho, :, :] *= 1/vol_zone[jrho]
+            self.dens_vol[spc_lbl] = np.tensordot(fbm     , bmvol, axes=(0, 0))/np.sum(bmvol)
+            self.trap_vol[spc_lbl] = np.tensordot(fbm_trap, bmvol, axes=(0, 0))/np.sum(bmvol)
+            vol_zone = np.zeros(n_zones)
+            for jrho in range(n_zones):
+                indrho = (rho_lab == jrho)
+                vol_zone[jrho] = np.sum(bmvol[indrho])
+                self.dens_zone[spc_lbl][jrho, :, :] = np.tensordot(fbm[     indrho, :, :], bmvol[indrho], axes = (0, 0))
+                self.trap_zone[spc_lbl][jrho, :, :] = np.tensordot(fbm_trap[indrho, :, :], bmvol[indrho], axes = (0, 0))
+                self.dens_zone[spc_lbl][jrho, :, :] *= 1/vol_zone[jrho]
+                self.trap_zone[spc_lbl][jrho, :, :] *= 1/vol_zone[jrho]
 
-        self.bdens[spc_lbl] = np.tensordot(self.dens_zone[spc_lbl], dpa_dE, axes=((1, 2), (0, 1)))
-        self.btrap[spc_lbl] = np.tensordot(self.trap_zone[spc_lbl], dpa_dE, axes=((1, 2), (0, 1)))
+            self.bdens[spc_lbl] = np.tensordot(self.dens_zone[spc_lbl], dpa_dE, axes=((1, 2), (0, 1)))
+            self.btrap[spc_lbl] = np.tensordot(self.trap_zone[spc_lbl], dpa_dE, axes=((1, 2), (0, 1)))
 
-        part_tot = np.sum(self.bdens[spc_lbl]*vol_zone)
-        trap_tot = np.sum(self.btrap[spc_lbl]*vol_zone)
-        print('Trapped #%12.4e    Total #%12.4e    Fraction %12.4e' %(trap_tot, part_tot, trap_tot/part_tot))
-        print('Volume averaged fast ion density #12.4e m^-3' %(part_tot/vol))
-        self.int_en_pit_frac_trap[spc_lbl] = int_en_pit_trap/self.int_en_pit[spc_lbl]
+            part_tot = np.sum(self.bdens[spc_lbl]*vol_zone)
+            trap_tot = np.sum(self.btrap[spc_lbl]*vol_zone)
+            print('Trapped #%12.4e    Total #%12.4e    Fraction %12.4e' %(trap_tot, part_tot, trap_tot/part_tot))
+            print('Volume averaged fast ion density #12.4e m^-3' %(part_tot/vol))
+            self.int_en_pit_frac_trap[spc_lbl] = int_en_pit_trap/self.int_en_pit[spc_lbl]
 
 
 if __name__ == '__main__':
