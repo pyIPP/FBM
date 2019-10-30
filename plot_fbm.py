@@ -27,6 +27,18 @@ lframe_wid = 630
 rframe_wid = 750
 fsize = 12
 
+try:
+    sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib/')
+    import get_gc
+
+    gc_r, gc_z = get_gc.get_gc()
+    m2cm = 100.
+    xpol_lim = (90, 230)
+    ypol_lim = (-125, 125)
+except:
+    xpol_lim = (30, 330)
+    ypol_lim = (-200, 200)
+
 
 class FBM:
 
@@ -97,23 +109,11 @@ class FBM:
 
         axpol = fig_pol.add_subplot(1, 1, 1, aspect='equal')
 
-        try:
-            sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib/')
-            import get_gc
-
-            gc_r, gc_z = get_gc.get_gc()
-            m2cm = 100.
-            xpol_lim = (90, 230)
-            ypol_lim = (-125, 125)
-            xtop_lim = (-600, 400)
-        except:
-            xpol_lim = (30, 330)
-            ypol_lim = (-200, 200)
-            xtop_lim = (-800, 600)
-        if 'gc_r' in locals():
+        if 'gc_r' in globals():
             for key in gc_r.keys():
                 axpol.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
-
+        axpol.set_xlim(xpol_lim)
+        axpol.set_ylim(ypol_lim)
         self.can_fbm   = {}
         self.cell_mark = {}
         self.fig_cell = {}
@@ -260,8 +260,10 @@ class FBM:
             self.x_grid, self.y_grid = np.meshgrid(xgrid, ygrid)
 
         ax = fig.add_subplot(1, 1, 1, aspect='equal')
+        ax.set_xlim(xpol_lim)
+        ax.set_ylim(ypol_lim)
 
-        if 'gc_r' in locals():
+        if 'gc_r' in globals():
             for key in gc_r.keys():
                 ax.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
         if hasattr(self, 'fbmr'):
