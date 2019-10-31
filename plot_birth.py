@@ -82,7 +82,7 @@ def read_birth(birth_file, topframe=None, tok='AUGD'):
 
     if tok == 'AUGD':
         import plot_aug
-        xlin, ylin, rlin, zlin = plot_aug.nbi_plot(nbis=src_arr, runid=runid, raug=False)
+        xlin, ylin, rlin, zlin = plot_aug.nbi_plot(nbis=src_arr, runid=runid)
 
     j_comp = np.zeros(n_birth, dtype=np.int32)
     ind_nbi = {}

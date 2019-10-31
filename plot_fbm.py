@@ -396,6 +396,11 @@ class FBM:
             nbtrap.add(trap_frame, text=spc_lbl)
 
             title = 'Trapped fast ion fraction %s' %spc_lbl
+            azmax = np.max(np.abs(self.fbmr.int_en_pit_frac_trap[spc_lbl]))
+            if np.isnan(azmax):
+                continue
+            if azmax < 1e-4:
+                continue
             self.fig_plot(pol_trapframe, title, self.fbmr.int_en_pit_frac_trap[spc_lbl], zmin=0)
             self.plot_trapdens(prof_trapframe, spc_lbl)
 
@@ -427,6 +432,11 @@ class FBM:
             self.nbdist.add(nbframe, text=spc_lbl)
 
             title = r'2D distribution %s, $\int\int$ dE dp.a.' %spc_lbl
+            azmax = np.max(np.abs(self.fbmr.int_en_pit[spc_lbl]))
+            if np.isnan(azmax):
+                continue
+            if azmax < 1e-3:
+                continue
             self.fig_plot(pol_frame, title, self.fbmr.int_en_pit[spc_lbl], zmin=0, spc_lbl=spc_lbl)
 
             self.fig_cell[spc_lbl]  = Figure(figsize=(3.5, 3.), dpi=100)
