@@ -29,8 +29,8 @@ class READ_FBM:
 # Time
         self.time = fbm_d['time']
         
-        bmvol = fbm_d['BMVOL'][:n_cells]
-        vol = 1.e-6*np.sum(bmvol)
+        self.bmvol = fbm_d['BMVOL'][:n_cells]
+        vol = 1.e-6*np.sum(self.bmvol)
         print('Volume is %8.4f m^-3' %vol)
 
         rho_lab = np.zeros(n_cells, dtype=int)      # rho index, takes values 0:n_zones-1
@@ -116,6 +116,7 @@ class READ_FBM:
         self.fdist  = {}
         self.a_d    = {}
         self.e_d    = {}
+        self.eb_d   = {}
         self.bdens  = {}
         self.btrap  = {}
         self.trap_pit   = {}
@@ -127,7 +128,7 @@ class READ_FBM:
         self.trap_vol   = {}
 
         n_spec = len(fbm_d['ABEAMS' ])
-
+        self.species = []
         for jspec in range(n_spec):
             if jspec < fbm_d['NSBEAM']:
                 if fbm_d['NLFPROD'][jspec]:
@@ -143,10 +144,12 @@ class READ_FBM:
             iso_lbl  = iso_d[(mass, charge)]
 
             spc_lbl = '%s_%s' %(iso_lbl, prod_lbl)
+            self.species.append(spc_lbl)
             print(spc_lbl)
-            self.e_d[spc_lbl] = fbm_d['EFBM'] [:, jspec]
+            self.e_d [spc_lbl] = fbm_d['EFBM'] [:, jspec]
+            self.eb_d[spc_lbl] = fbm_d['EFBMB'][:, jspec]
             self.a_d[spc_lbl] = fbm_d['XXKSID']
-            dE  = np.diff(fbm_d['EFBMB'][:, jspec])
+            dE  = np.diff(self.eb_d[spc_lbl])
             dpa = np.repeat(self.a_d[spc_lbl][1] - self.a_d[spc_lbl][0], n_pit) # assuming regular p.a, grid
             dpa_dE = np.outer(dpa, dE)
 
@@ -170,14 +173,14 @@ class READ_FBM:
             self.dens_zone[spc_lbl] = np.zeros((n_zones, n_pit, n_E))
             self.trap_zone[spc_lbl] = np.zeros((n_zones, n_pit, n_E))
 
-            self.dens_vol[spc_lbl] = np.tensordot(fbm     , bmvol, axes=(0, 0))/np.sum(bmvol)
-            self.trap_vol[spc_lbl] = np.tensordot(fbm_trap, bmvol, axes=(0, 0))/np.sum(bmvol)
+            self.dens_vol[spc_lbl] = np.tensordot(fbm     , self.bmvol, axes=(0, 0))/np.sum(self.bmvol)
+            self.trap_vol[spc_lbl] = np.tensordot(fbm_trap, self.bmvol, axes=(0, 0))/np.sum(self.bmvol)
             vol_zone = np.zeros(n_zones)
             for jrho in range(n_zones):
                 indrho = (rho_lab == jrho)
-                vol_zone[jrho] = np.sum(bmvol[indrho])
-                self.dens_zone[spc_lbl][jrho, :, :] = np.tensordot(fbm[     indrho, :, :], bmvol[indrho], axes = (0, 0))
-                self.trap_zone[spc_lbl][jrho, :, :] = np.tensordot(fbm_trap[indrho, :, :], bmvol[indrho], axes = (0, 0))
+                vol_zone[jrho] = np.sum(self.bmvol[indrho])
+                self.dens_zone[spc_lbl][jrho, :, :] = np.tensordot(fbm[     indrho, :, :], self.bmvol[indrho], axes = (0, 0))
+                self.trap_zone[spc_lbl][jrho, :, :] = np.tensordot(fbm_trap[indrho, :, :], self.bmvol[indrho], axes = (0, 0))
                 self.dens_zone[spc_lbl][jrho, :, :] *= 1/vol_zone[jrho]
                 self.trap_zone[spc_lbl][jrho, :, :] *= 1/vol_zone[jrho]
 
