@@ -265,8 +265,8 @@ class FBM:
         if 'gc_r' in globals():
             for key in gc_r.keys():
                 ax.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
-        for irho in range(self.fbmr.rsurf.shape[0]):
-            ax.plot(self.fbmr.rsurf[irho, :], self.fbmr.zsurf[irho, :], 'r-')
+        for irho in range(self.fbmr.r_surf.shape[0]):
+            ax.plot(self.fbmr.r_surf[irho, :], self.fbmr.z_surf[irho, :], 'r-')
         for jbar, myr in enumerate(self.fbmr.rbar):
             ax.plot(myr, self.fbmr.zbar[jbar], 'r-')
 

@@ -15,7 +15,7 @@ class READ_FBM:
             fbm_lbl = 'FBM'
         else:
             fbm_lbl = 'FBM_PTCL'
-        list_read = ['BMVOL', 'EFBM', 'EFBMB', 'XXKSID', fbm_lbl, 'RSURF1', 'YSURF1', 'RMC', 'YMC', 'XZBEAMS', 'ABEAMS', 'NLFPROD']
+        list_read = ['BMVOL', 'EFBM', 'EFBMB', 'XXKSID', fbm_lbl, 'RSURF1', 'YSURF1', 'RMC', 'YMC', 'XZBEAMS', 'ABEAMS', 'NLFPROD', 'RAXIS', 'YAXIS', 'BDENS2']
 
         fbm_d = parse_ac.parse_ac(f_ac, list_read=list_read)
 
@@ -27,12 +27,12 @@ class READ_FBM:
         n_mom   = fbm_d['NMOM']
 
 # Time
-        self.time = fbm_d['time']
-        
-        self.bmvol = fbm_d['BMVOL'][:n_cells]
+        self.time   = fbm_d['time']
+        self.nshot  = fbm_d['NSHOT']
+        self.bmvol  = fbm_d['BMVOL'][:n_cells]
         vol = 1.e-6*np.sum(self.bmvol)
         print('Volume is %8.4f m^-3' %vol)
-
+        
         rho_lab = np.zeros(n_cells, dtype=int)      # rho index, takes values 0:n_zones-1
 
 #-------------------------
@@ -49,28 +49,26 @@ class READ_FBM:
             nthsurf = 201
         thbdy1 = np.pi
 
-        nxsurf = 2*n_zones + 1
         print('N cells', n_cells, n_zones)
-
         nthe_tr, nrho_tr = fbm_d['RSURF1'].shape
-        nrho_step = nrho_tr//n_zones
-        self.rsurf = 100*fbm_d['RSURF1'][:, ::nrho_step].T
-        self.zsurf = 100*fbm_d['YSURF1'][:, ::nrho_step].T
+        nrho_step1 = nrho_tr//n_zones
+        self.r_surf = 100*fbm_d['RSURF1'][:, ::nrho_step1].T
+        self.z_surf = 100*fbm_d['YSURF1'][:, ::nrho_step1].T
+        th_surf = np.linspace(thbdy0, thbdy1, nthe_tr)
 
         self.x2d  = np.zeros(n_cells)
         self.th2d = np.zeros(n_cells)
         self.r2d  = np.zeros(n_cells)
         self.z2d  = np.zeros(n_cells)
 
-        rcos = fbm_d['RMC'][3: nrho_tr: nrho_step, :n_mom, 0] #rho, nmom, cos/sin
-        rsin = fbm_d['RMC'][3: nrho_tr: nrho_step, :n_mom, 1]
-        zcos = fbm_d['YMC'][3: nrho_tr: nrho_step, :n_mom, 0]
-        zsin = fbm_d['YMC'][3: nrho_tr: nrho_step, :n_mom, 1]
+        rcos = fbm_d['RMC'][nrho_step1-1: nrho_tr: nrho_step1, :n_mom, 0] #rho, nmom, cos/sin
+        rsin = fbm_d['RMC'][nrho_step1-1: nrho_tr: nrho_step1, :n_mom, 1]
+        zcos = fbm_d['YMC'][nrho_step1-1: nrho_tr: nrho_step1, :n_mom, 0]
+        zsin = fbm_d['YMC'][nrho_step1-1: nrho_tr: nrho_step1, :n_mom, 1]
 
         self.rho_grid  = (0.5 + np.arange(n_zones))/float(n_zones)
         rmaj_min = np.zeros(n_zones)         # min(R(rho))
-        thsurf = np.linspace(thbdy0, thbdy1, nthe_tr)
-        xsurf  = np.linspace(0, 1, nxsurf)
+
         rho_lab = np.zeros(n_cells, dtype=int)      # rho index, takes values 0:n_zones-1
 
         thb_grid2d = []
@@ -91,21 +89,38 @@ class READ_FBM:
             self.z2d [ind] = z2d_loc
             min_ind += nth
 
+# Surface contours
+
+        nxsurf = 2*n_zones + 1
+        nrho_step2 = nrho_tr//(nxsurf-1)
+        self.thsurf = np.linspace(thbdy0, thbdy1, nthsurf)
+        self.xsurf = np.linspace(0, 1, nxsurf)
+        print('Nrho step2', nrho_step2, nrho_step1, nrho_tr, nxsurf, n_zones)
+        self.rsurf = np.zeros((nxsurf, nthsurf))
+        self.zsurf = np.zeros((nxsurf, nthsurf))
+        rcos = fbm_d['RMC'][(nrho_step2-1):: nrho_step2, :n_mom, 0] #rho, nmom, cos/sin
+        rsin = fbm_d['RMC'][(nrho_step2-1):: nrho_step2, :n_mom, 1]
+        zcos = fbm_d['YMC'][(nrho_step2-1):: nrho_step2, :n_mom, 0]
+        zsin = fbm_d['YMC'][(nrho_step2-1):: nrho_step2, :n_mom, 1]
+        self.rsurf, self.zsurf = mom2rz.mom2rz(rcos, rsin, zcos, zsin, theta=self.thsurf)
+        self.rsurf[0, :] = fbm_d['RAXIS']
+        self.zsurf[0, :] = fbm_d['YAXIS']
+
 # MC cells: grid bars
 
         self.rbar = []
         self.zbar = []
         for jrho in range(n_zones):
             for ythe in thb_grid2d[jrho]:
-                ithe = np.min(np.where(thsurf > ythe))
+                ithe = np.min(np.where(th_surf > ythe))
                 ind = [ithe - 1, ithe ]
-                th_ref = thsurf[ind]
+                th_ref = th_surf[ind]
                 rbar = np.zeros(2)
                 zbar = np.zeros(2)
-                rbar[0] = np.interp(ythe, th_ref, self.rsurf[jrho  , ind])
-                zbar[0] = np.interp(ythe, th_ref, self.zsurf[jrho  , ind])
-                rbar[1] = np.interp(ythe, th_ref, self.rsurf[jrho+1, ind])
-                zbar[1] = np.interp(ythe, th_ref, self.zsurf[jrho+1, ind])
+                rbar[0] = np.interp(ythe, th_ref, self.r_surf[jrho  , ind])
+                zbar[0] = np.interp(ythe, th_ref, self.z_surf[jrho  , ind])
+                rbar[1] = np.interp(ythe, th_ref, self.r_surf[jrho+1, ind])
+                zbar[1] = np.interp(ythe, th_ref, self.z_surf[jrho+1, ind])
                 self.rbar.append(rbar)
                 self.zbar.append(zbar)
                
@@ -113,12 +128,13 @@ class READ_FBM:
 # Read distribution, energy, pitch data from AC
 #----------------------------------------------
 
-        self.fdist  = {}
-        self.a_d    = {}
-        self.e_d    = {}
-        self.eb_d   = {}
-        self.bdens  = {}
-        self.btrap  = {}
+        self.fdist = {}
+        self.a_d   = {}
+        self.e_d   = {}
+        self.eb_d  = {}
+        self.btrap = {}
+        self.bdens = {}
+        self.n_tot = {}
         self.trap_pit   = {}
         self.int_en_pit = {}
         self.int_en_pit_frac_trap = {}
@@ -129,7 +145,18 @@ class READ_FBM:
 
         n_spec = len(fbm_d['ABEAMS' ])
         self.species = []
+        self.bdens2  = []
+
         for jspec in range(n_spec):
+
+            if gc:
+                fbm = 0.5*fbm_d[fbm_lbl][:, :, :, jspec].transpose((2, 1, 0)) #4th: species
+            else:
+                fbm = 0.5*fbm_d[fbm_lbl][:, :, :, jspec, 0].transpose((2, 1, 0))
+# Skip population with zero fast ions
+            if np.max(np.abs(fbm)) == 0:
+                continue
+
             if jspec < fbm_d['NSBEAM']:
                 if fbm_d['NLFPROD'][jspec]:
                     prod_lbl = 'FUS'
@@ -144,20 +171,16 @@ class READ_FBM:
             iso_lbl  = iso_d[(mass, charge)]
 
             spc_lbl = '%s_%s' %(iso_lbl, prod_lbl)
-            self.species.append(spc_lbl)
             print(spc_lbl)
-            self.e_d [spc_lbl] = fbm_d['EFBM'] [:, jspec]
+
+            self.species.append(spc_lbl)
+            self.bdens2.append(fbm_d['BDENS2'][:n_cells, jspec])
+            self.fdist[spc_lbl] = fbm
+            self.e_d [spc_lbl] = fbm_d['EFBM' ][:, jspec]
             self.eb_d[spc_lbl] = fbm_d['EFBMB'][:, jspec]
             self.a_d[spc_lbl] = fbm_d['XXKSID']
-            dE  = np.diff(self.eb_d[spc_lbl])
-            dpa = np.repeat(self.a_d[spc_lbl][1] - self.a_d[spc_lbl][0], n_pit) # assuming regular p.a, grid
-            dpa_dE = np.outer(dpa, dE)
 
-            if gc:
-                fbm = 0.5*fbm_d[fbm_lbl][:, :, :, jspec].transpose((2, 1, 0)) #4th: species
-            else:
-                fbm = 0.5*fbm_d[fbm_lbl][:, :, :, jspec, 0].transpose((2, 1, 0))
-            self.fdist[spc_lbl] = fbm
+# Trapped particles
 
             fbm_trap = np.zeros((n_cells, n_pit, n_E))
             self.trap_pit[spc_lbl] = 1. - rmaj_min[rho_lab[:]]/self.r2d[:]
@@ -166,6 +189,10 @@ class READ_FBM:
                 fbm_trap[jcell, ind_trap, :] = fbm[jcell, ind_trap, :]
 
 # Integrals
+
+            dE  = np.diff(self.eb_d[spc_lbl])
+            dpa = np.repeat(self.a_d[spc_lbl][1] - self.a_d[spc_lbl][0], n_pit) # assuming regular p.a, grid
+            dpa_dE = np.outer(dpa, dE)
 
             self.int_en_pit[spc_lbl] = np.tensordot(fbm, dpa_dE, axes=((1, 2), (0, 1)))
             int_en_pit_trap = np.tensordot(fbm_trap, dpa_dE, axes=((1, 2), (0, 1)))
@@ -187,11 +214,12 @@ class READ_FBM:
             self.bdens[spc_lbl] = np.tensordot(self.dens_zone[spc_lbl], dpa_dE, axes=((1, 2), (0, 1)))
             self.btrap[spc_lbl] = np.tensordot(self.trap_zone[spc_lbl], dpa_dE, axes=((1, 2), (0, 1)))
 
-            part_tot = np.sum(self.bdens[spc_lbl]*vol_zone)
+            self.n_tot[spc_lbl] = np.sum(self.bdens[spc_lbl]*vol_zone)
             trap_tot = np.sum(self.btrap[spc_lbl]*vol_zone)
-            print('Trapped #%12.4e    Total #%12.4e    Fraction %12.4e' %(trap_tot, part_tot, trap_tot/part_tot))
-            print('Volume averaged fast ion density #12.4e m^-3' %(part_tot/vol))
+            print('Trapped #%12.4e    Total #%12.4e    Fraction %12.4e' %(trap_tot, self.n_tot[spc_lbl], trap_tot/self.n_tot[spc_lbl]))
+            print('Volume averaged fast ion density #12.4e m^-3' %(self.n_tot[spc_lbl]/vol))
             self.int_en_pit_frac_trap[spc_lbl] = int_en_pit_trap/self.int_en_pit[spc_lbl]
+        self.bdens2 = np.array(self.bdens2)
 
 
 if __name__ == '__main__':
