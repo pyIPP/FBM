@@ -10,7 +10,7 @@ class PHILOS:
         y0     = par_d['y0']
         z0     = par_d['z0']
         xend   = par_d['xend']
-        phi0 = np.arctan(x0/y0)
+        phi0 = np.arctan2(x0, y0)
         phi  = phi_in + phi0
         dx   = xend - x0
         dr   = dx/np.sin(phi)

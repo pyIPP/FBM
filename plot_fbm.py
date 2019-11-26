@@ -20,7 +20,7 @@ import matplotlib as mpl
 import numpy as np
 
 
-bdens_d = {'D_NBI': 'BDENS', 'He3_FUSN': 'FDENS_3', \
+bdens_d = {'D_NBI': 'BDENS', 'H_NBI': 'BDENS', 'He3_FUSN': 'FDENS_3', \
            'H_FUSN': 'FDENS_P', 'T_FUSN': 'FDENS_T'}
 
 lframe_wid = 630
@@ -242,6 +242,7 @@ class FBM:
         runid    = fbmfile[:8]
 
         print('Plot %s' %title)
+
         title += ', Run %s, t =%6.3f s' %(runid, self.fbmr.time)
 
         for child in frame.winfo_children():
@@ -351,6 +352,7 @@ class FBM:
         self.plot_neut(self.neutframe)
         self.plot_dist(self.fbmframe)
         self.plot_trap(self.trapframe)
+
         birth_file =  '%s/%s_birth.cdf%s' %(fbmdir, runid, t_id)
         plot_birth.read_birth(birth_file, topframe=self.birthframe)
 
@@ -362,6 +364,9 @@ class FBM:
 
         btneut = self.cv['BTNT2_DD']
         bbneut = self.cv['BBNT2_DD']
+        if (np.max(btneut) == 0) and (np.max(bbneut) == 0):
+            print('Zero neutrons')
+            return
         indbt = (btneut == 0)
         indbb = (btneut == 0)
         btneut[indbt] = np.nan
@@ -396,7 +401,7 @@ class FBM:
             nbtrap.add(trap_frame, text=spc_lbl)
 
             title = 'Trapped fast ion fraction %s' %spc_lbl
-            azmax = np.max(np.abs(self.fbmr.int_en_pit_frac_trap[spc_lbl]))
+            azmax = np.nanmax(np.abs(self.fbmr.int_en_pit_frac_trap[spc_lbl]))
             if np.isnan(azmax):
                 continue
             if azmax < 1e-4:

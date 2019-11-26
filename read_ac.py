@@ -145,7 +145,7 @@ class READ_FBM:
 
         n_spec = len(fbm_d['ABEAMS' ])
         self.species = []
-        self.bdens2  = []
+        self.bdens2  = [] # Nr. of fast ions in a cell
 
         for jspec in range(n_spec):
 

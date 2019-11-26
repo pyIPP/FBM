@@ -21,7 +21,7 @@ def read_birth(birth_file, topframe=None, tok='AUGD'):
     print('Reading %s' %birth_file)
 
     if not os.path.isfile(birth_file):
-        tkmb.showerror("Error", '%s not found' %birth_file)
+        print('Error %s not found' %birth_file)
         return
 
     birthdir, birthfile  = os.path.split(birth_file)

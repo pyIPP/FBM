@@ -1,4 +1,4 @@
-import os, sys, datetime
+import os, datetime
 import numpy as np
 import read_ac
 from scipy.io import netcdf
@@ -70,9 +70,10 @@ def ac2cdf(f_ac, gc=True):
     run_id = f.createVariable('TRANSP_RUNID', 'c', ('nchar', ))
     run_id[:] = runid
 
-    f.createDimension('nscal', 0)
+    f.createDimension('nscal', 1)
     nshot = f.createVariable('nshot', np.int32, ('nscal', ))
-    nshot[0] = fbm.nshot
+    nshot.assignValue(fbm.nshot)
+#    nshot[0] = fbm.nshot
     nshot.long_name = 'Shot number'
 
     xsurf = f.createVariable('XSURF', np.float32, ('XSURF', ))
@@ -152,7 +153,7 @@ def ac2cdf(f_ac, gc=True):
         fb.long_name = '%s fast ion distribution function' %spc_lbl
 
         ntot = f.createVariable(Nlbl, np.float32, ('nscal', ))
-        ntot[0] = fbm.n_tot[spc_lbl]
+        ntot.assignValue(fbm.n_tot[spc_lbl])
         ntot.units = ''
         ntot.long_name = 'Total number of fast ions %s' %spc_lbl
 
@@ -175,8 +176,9 @@ if __name__ == '__main__':
     print(cv1['nshot'].data)
     print(cv2['nshot'].data)
 
-    for key, val in cv1.items():
-        if 'den' in key.lower():
-            print(key)
     print(cv1['NTOT_D_NBI'].data)
     print(cv2['NTOT_D_NBI'].data)
+
+    ntot1 = np.sum(cv1['bdens2'].data)
+    ntot2 = np.sum(cv2['bdens2'].data)
+    print(ntot1, ntot2)

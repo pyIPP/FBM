@@ -8,7 +8,7 @@ def tr2xy(rtcena, midpl2, alpha, phi_box):
 
     tmp = rot(-alpha, midpl2, rtcena)
     rm  = rot(phi_box, tmp.x, tmp.y)
-    phi = np.arctan(rtcena/midpl2)
+    phi = np.arctan2(rtcena, midpl2)
     return rm.x, rm.y, phi
 
 
