@@ -15,7 +15,7 @@ class READ_FBM:
             fbm_lbl = 'FBM'
         else:
             fbm_lbl = 'FBM_PTCL'
-        list_read = ['BMVOL', 'EFBM', 'EFBMB', 'XXKSID', fbm_lbl, 'RSURF1', 'YSURF1', 'RMC', 'YMC', 'XZBEAMS', 'ABEAMS', 'NLFPROD', 'RAXIS', 'YAXIS', 'BDENS2']
+        list_read = ['AVGTIM', 'BMVOL', 'EFBM', 'EFBMB', 'XXKSID', fbm_lbl, 'RSURF1', 'YSURF1', 'RMC', 'YMC', 'XZBEAMS', 'ABEAMS', 'NLFPROD', 'RAXIS', 'YAXIS', 'BDENS2']
 
         fbm_d = parse_ac.parse_ac(f_ac, list_read=list_read)
 
@@ -27,6 +27,7 @@ class READ_FBM:
         n_mom   = fbm_d['NMOM']
 
 # Time
+        self.dt = fbm_d['AVGTIM']
         self.time   = fbm_d['time']
         self.nshot  = fbm_d['NSHOT']
         self.bmvol  = fbm_d['BMVOL'][:n_cells]
@@ -233,3 +234,4 @@ if __name__ == '__main__':
     f_ac  = '%s/%s.DATA1'    %(run_dir, runid)
 
     fbm = READ_FBM(f_ac)
+    print(fbm.dt)

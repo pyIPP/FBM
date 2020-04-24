@@ -11,7 +11,7 @@ except:
     from tkinter import messagebox as tkmb
 
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import read_fbm
 
 
@@ -49,7 +49,7 @@ def read_birth(birth_file, topframe=None, tok='AUGD'):
     print(birth_file)
 
     mcl = cv['mclabel'].data
-    mc_label = "".join(mcl[0]).strip()
+    mc_label = "".join([x.decode('UTF-8') for x in mcl[0]]).strip()
 
 # Read data from cdf
 
@@ -167,8 +167,12 @@ def read_birth(birth_file, topframe=None, tok='AUGD'):
 
     if topframe is None:
         topframe = tk.Toplevel()
+        xmax = topframe.winfo_screenwidth()
+        ymax = topframe.winfo_screenheight()
+        width  = min(1500, int(0.95*xmax))
+        height = min(940, int(0.88*ymax)) 
         topframe.title('Birth location')
-        topframe.geometry('1500x940')
+        topframe.geometry('%dx%d' %(width, height))
     nbsource = ttk.Notebook(topframe, name='nb source')
     nbsource.pack(side=tk.TOP, fill=tk.X)
 
@@ -294,7 +298,7 @@ def read_birth(birth_file, topframe=None, tok='AUGD'):
             axpol.legend(loc=2, numpoints=1, prop={'size': 8})
             jsplot += 1
 
-        toolbar = NavigationToolbar2TkAgg(can_birth, frame_birth)
+        toolbar = NavigationToolbar2Tk(can_birth, frame_birth)
         toolbar.update()
 
 #-------------------------
@@ -340,7 +344,7 @@ def read_birth(birth_file, topframe=None, tok='AUGD'):
 
             jsplot += 1
 
-        toolbar = NavigationToolbar2TkAgg(can_pol, frame_pol)
+        toolbar = NavigationToolbar2Tk(can_pol, frame_pol)
         toolbar.update()
 
 # Attenutation
@@ -364,7 +368,7 @@ def read_birth(birth_file, topframe=None, tok='AUGD'):
             axatt.plot(R_grid, res_R[jsrc][jcomp])
             jsplot += 1
 
-        toolbar = NavigationToolbar2TkAgg(can_att, frame_att)
+        toolbar = NavigationToolbar2Tk(can_att, frame_att)
         toolbar.update()
 
 # Add tabs

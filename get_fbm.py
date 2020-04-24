@@ -73,8 +73,11 @@ def ac2cdf(f_ac, gc=True):
     f.createDimension('nscal', 1)
     nshot = f.createVariable('nshot', np.int32, ('nscal', ))
     nshot.assignValue(fbm.nshot)
-#    nshot[0] = fbm.nshot
     nshot.long_name = 'Shot number'
+
+    dt_avg = f.createVariable('DT_AVG', np.float32, ('nscal', ))
+    dt_avg.assignValue(fbm.dt)
+    dt_avg.long_name = 'AVG. Time'
 
     xsurf = f.createVariable('XSURF', np.float32, ('XSURF', ))
     xsurf[:] = fbm.xsurf
@@ -173,8 +176,12 @@ if __name__ == '__main__':
     f_cdf2 = '/afs/ipp/home/g/git/tr_client/AUGD/29783/A01/29783A01_fitest_1.cdf'
     cv2 = netcdf.netcdf_file(f_cdf2, 'r', mmap=False).variables
 
-    print(cv1['nshot'].data)
-    print(cv2['nshot'].data)
+    for key, val in cv1.items():
+        if 'DT' in key:
+            print(key, val.data)
+    print(cv1['DT_AVG'].data)
+#    print(cv1['DT_AVG'].__dict__)
+    print(cv2['DT_AVG'].data)
 
     print(cv1['NTOT_D_NBI'].data)
     print(cv2['NTOT_D_NBI'].data)

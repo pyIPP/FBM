@@ -97,7 +97,7 @@ class READ_FBM:
         for j in range(10):
             lbl = 'SPECIES_%d' %j
             if lbl in cv.keys():
-                slbl = "".join(cv[lbl].data)
+                slbl = ''.join([x.decode('UTF-8') for x in cv[lbl].data])
                 spec_lab.append(slbl)
 
         self.fdist  = {}

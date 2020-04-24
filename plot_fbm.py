@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys, os
 from scipy.io import netcdf
 try:
@@ -13,7 +15,12 @@ except:
 
 import read_ac, read_fbm, plot_birth
 import tkhyper
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+try:
+    from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk as nt2tk
+except:
+    from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg as nt2tk
+
 from matplotlib.figure import Figure
 from matplotlib.mlab import griddata
 import matplotlib as mpl
@@ -47,8 +54,12 @@ class FBM:
 # Widget frame
 
         viewer = tk.Tk()
+        xmax = viewer.winfo_screenwidth()
+        ymax = viewer.winfo_screenheight()
+        width  = min(lframe_wid + rframe_wid, int(0.95*xmax))
+        height = min(960, int(0.88*ymax)) 
         viewer.title('FBM viewer')
-        viewer.geometry('%dx960' %(lframe_wid + rframe_wid))
+        viewer.geometry('%dx%d' %(width, height))
         viewer.option_add("*Dialog.msg.wrapLength", "10i")
         viewer.option_add("*Font", "Helvetica")
 # Menubar
@@ -230,7 +241,7 @@ class FBM:
             axtrapdens.plot(self.fbmr.rho_grid, frac_trap, 'r-')
         else:
             axtrapdens.plot([], [])
-        toolbar = NavigationToolbar2TkAgg(can_trapdens, frame)
+        toolbar = nt2tk(can_trapdens, frame)
         toolbar.update()
 
         can_trapdens.draw()
@@ -291,7 +302,7 @@ class FBM:
             self.cell_mark[spc_lbl], = ax.plot([], [], 'ro')
 
 # Toolbar
-        toolbar = NavigationToolbar2TkAgg(can, frame)
+        toolbar = nt2tk(can, frame)
         toolbar.update()
 
 
@@ -336,7 +347,8 @@ class FBM:
             print('%s not found' %tr_file)
             tkmb.showerror("Error", '%s not found')
         cv_all = netcdf.netcdf_file(tr_file, 'r', mmap=False).variables
-        sigs = ['BTNT2_DD', 'BBNT2_DD', 'TIME3', 'X'] + bdens_d.values()
+        bdlist = [x for x in bdens_d.values()]
+        sigs = ['BTNT2_DD', 'BBNT2_DD', 'TIME3', 'X'] + bdlist
         tdist = (cv_all['TIME3'].data - self.fbmr.time)**2
         jtclose = np.argmin(tdist)
         self.cv = {}
@@ -448,7 +460,7 @@ class FBM:
             self.fig_cell[spc_lbl].subplots_adjust(left=0.14, bottom=0.15, right=0.82, top=0.92)
             can_cell = FigureCanvasTkAgg(self.fig_cell[spc_lbl], master=cell_frame)
             can_cell._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-            toolbar = NavigationToolbar2TkAgg(can_cell, cell_frame)
+            toolbar = nt2tk(can_cell, cell_frame)
             toolbar.update()
 
 # Plots on the right
