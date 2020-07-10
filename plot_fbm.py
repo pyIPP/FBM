@@ -371,6 +371,9 @@ class FBM:
 
     def plot_neut(self, frame):
 
+        if 'BTNT2_DD' not in self.cv.keys():
+            print('No beam-target neutrons calculated, H plasma?')
+            return
         for child in frame.winfo_children():
             child.destroy()
 

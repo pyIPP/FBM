@@ -19,7 +19,9 @@ def ac2cdf(f_ac, gc=True):
     f_cdf = '%s/%s_fitest_%s.cdf' %(trdir, runid, t_id)
     
 # Create NetCDF file
-    f = netcdf.netcdf_file(f_cdf, 'w', mmap=False)
+    print('Storing NetCDF file %s' %f_cdf)
+    f = netcdf.netcdf_file(f_cdf, 'w', mmap=False, version=2)
+#    f = netcdf.netcdf_file(f_cdf, 'w', mmap=False)
     f.history = "Created " + datetime.datetime.today().strftime("%d/%m/%y")
 
 # Grids
@@ -168,19 +170,25 @@ def ac2cdf(f_ac, gc=True):
 if __name__ == '__main__':
 
 
-    f_cdf1 = '/afs/ipp/home/g/git/tr_client/AUGD/29783/A01/29783A01_fi_1.cdf'
-    cv1 = netcdf.netcdf_file(f_cdf1, 'r', mmap=False).variables
-
     f_ac = '/afs/ipp/home/g/git/tr_client/AUGD/29783/A01/29783A01.DATA1'
     ac2cdf(f_ac)
-    f_cdf2 = '/afs/ipp/home/g/git/tr_client/AUGD/29783/A01/29783A01_fitest_1.cdf'
-    cv2 = netcdf.netcdf_file(f_cdf2, 'r', mmap=False).variables
 
-    for key, val in cv1.items():
-        if 'DT' in key:
-            print(key, val.data)
+    f_cdf1 = '/afs/ipp/home/g/git/tr_client/AUGD/29783/A01/29783A01_fi_1.cdf'
+    f_cdf2 = '/afs/ipp/home/g/git/tr_client/AUGD/29783/A01/29783A01_fitest_1.cdf'
+
+    dset1 = netcdf.netcdf_file(f_cdf1, 'r', mmap=False)
+    dset2 = netcdf.netcdf_file(f_cdf2, 'r', mmap=False)
+
+#    import IPython
+#    IPython.embed()
+
+    print(dset1.version_byte)
+    print(dset2.version_byte)
+
+    cv1 = dset1.variables
+    cv2 = dset2.variables
+
     print(cv1['DT_AVG'].data)
-#    print(cv1['DT_AVG'].__dict__)
     print(cv2['DT_AVG'].data)
 
     print(cv1['NTOT_D_NBI'].data)

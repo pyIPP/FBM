@@ -1,6 +1,5 @@
 import os
 import numpy as np
-import matplotlib.pylab as plt
 import parse_ac, mom2rz
 
 iso_d  = {(1, 1): 'H', (2, 1) : 'D', (3, 1): 'T', (3, 2): 'HE3', (4, 2): 'HE4'}

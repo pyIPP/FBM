@@ -11,7 +11,11 @@ except:
     from tkinter import messagebox as tkmb
 
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+try:
+    from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk as nt2tk
+except:
+    from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg as nt2tk
 import read_fbm
 
 
@@ -298,7 +302,7 @@ def read_birth(birth_file, topframe=None, tok='AUGD'):
             axpol.legend(loc=2, numpoints=1, prop={'size': 8})
             jsplot += 1
 
-        toolbar = NavigationToolbar2Tk(can_birth, frame_birth)
+        toolbar = nt2tk(can_birth, frame_birth)
         toolbar.update()
 
 #-------------------------
@@ -344,7 +348,7 @@ def read_birth(birth_file, topframe=None, tok='AUGD'):
 
             jsplot += 1
 
-        toolbar = NavigationToolbar2Tk(can_pol, frame_pol)
+        toolbar = nt2tk(can_pol, frame_pol)
         toolbar.update()
 
 # Attenutation
@@ -368,7 +372,7 @@ def read_birth(birth_file, topframe=None, tok='AUGD'):
             axatt.plot(R_grid, res_R[jsrc][jcomp])
             jsplot += 1
 
-        toolbar = NavigationToolbar2Tk(can_att, frame_att)
+        toolbar = nt2tk(can_att, frame_att)
         toolbar.update()
 
 # Add tabs
