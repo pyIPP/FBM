@@ -16,6 +16,7 @@ try:
     from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk as nt2tk
 except:
     from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg as nt2tk
+import sfread
 import read_ac
 
 
@@ -134,11 +135,8 @@ def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
 
 # AUG 
     if tok == 'AUGD':
-        import sys
-        sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib/')
-        import get_gc
 
-        gc_r, gc_z = get_gc.get_gc()
+        gc_r, gc_z = sfread.get_gc()
         tor_d = plot_aug.STRUCT().tor_old
         m2cm = 100.
         xpol_lim = (90, 230)
