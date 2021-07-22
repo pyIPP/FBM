@@ -16,10 +16,10 @@ try:
     from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk as nt2tk
 except:
     from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg as nt2tk
-import read_fbm
+import read_ac
 
 
-def read_birth(birth_file, topframe=None, tok='AUGD'):
+def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
 
 
     print('Reading %s' %birth_file)
@@ -34,18 +34,13 @@ def read_birth(birth_file, topframe=None, tok='AUGD'):
     t_id  = birthfile.split('cdf')[-1]
 
 # Get 
-    fbm_file = birth_file.replace('birth.cdf%s' %t_id, 'fi_%s.cdf' %t_id)
-    if not os.path.isfile(fbm_file):
-        print('%s not found' %fbm_file)
-    else:
-        fbm = read_fbm.READ_FBM(fbm_file)
-        ntheta = 101
-        Rmaj = fbm.rsurf[0, 0]
-        Rtor_in  = np.min(fbm.rsurf)
-        Rtor_out = np.max(fbm.rsurf)
-        phi_tor = np.linspace(0, 2*np.pi, ntheta)
-        cosp = np.cos(phi_tor)
-        sinp = np.sin(phi_tor)
+    ntheta = 101
+    Rmaj = fbm.rsurf[0, 0]
+    Rtor_in  = np.min(fbm.rsurf)
+    Rtor_out = np.max(fbm.rsurf)
+    phi_tor = np.linspace(0, 2*np.pi, ntheta)
+    cosp = np.cos(phi_tor)
+    sinp = np.sin(phi_tor)
  
     cv = netcdf.netcdf_file(birth_file, 'r', mmap=False).variables
 

@@ -13,7 +13,7 @@ except:
     from tkinter import filedialog as tkfd
     from tkinter import messagebox as tkmb
 
-import read_ac, read_fbm, plot_birth
+import read_ac, plot_birth
 import tkhyper
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 try:
@@ -311,7 +311,6 @@ class FBM:
         dir_init = os.getenv('HOME')+'/tr_client/AUGD'
         self.ffbm = tkfd.askopenfilename(  initialdir=dir_init, filetypes= \
                                         (("FBM", "*.DATA*"),)    )
-#                                        (("FBM", "*.cdf"),)    ) #read_fbm
 
         print(self.ffbm)
 
@@ -324,11 +323,6 @@ class FBM:
     def read_all(self):
 
         fbmdir, fbmfile  = os.path.split(self.ffbm)
-
-#        tmp = fbmfile.split('_') #read_fbm
-#        runid = tmp[0]
-#        t_id  = tmp[2].split('.')[0]
-#        self.fbmr = read_fbm.READ_FBM(self.ffbm)
 
         tmp = fbmfile.split('.')
         runid = tmp[0]
@@ -366,7 +360,7 @@ class FBM:
         self.plot_trap(self.trapframe)
 
         birth_file =  '%s/%s_birth.cdf%s' %(fbmdir, runid, t_id)
-        plot_birth.read_birth(birth_file, topframe=self.birthframe)
+        plot_birth.read_birth(birth_file, self.fbmr, topframe=self.birthframe)
 
 
     def plot_neut(self, frame):
