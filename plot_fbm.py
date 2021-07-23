@@ -22,8 +22,8 @@ try:
 except:
     from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg as nt2tk
 
+from scipy.interpolate import griddata
 from matplotlib.figure import Figure
-from matplotlib.mlab import griddata
 import matplotlib as mpl
 import numpy as np
 
@@ -282,9 +282,9 @@ class FBM:
             ax.plot(myr, self.fbmr.zbar[jbar], 'r-')
 
 # Selected point
+        ctr_f = griddata((self.fbmr.r2d, self.fbmr.z2d), zdata, \
+             (self.x_grid, self.y_grid), method='linear')
 
-        ctr_f = griddata(self.fbmr.r2d, self.fbmr.z2d, zdata, \
-             self.x_grid, self.y_grid, interp='linear')
         if zmin is None:
             zmin = np.nanmin(ctr_f)
         if zmax is None:
