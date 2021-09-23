@@ -1,4 +1,4 @@
-import os
+import os, sys
 import numpy as np
 from scipy.io import netcdf
 try:
@@ -16,8 +16,6 @@ try:
     from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk as nt2tk
 except:
     from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg as nt2tk
-import sfread
-import read_ac
 
 
 def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
@@ -135,6 +133,8 @@ def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
 
 # AUG 
     if tok == 'AUGD':
+        sys.path.append('/afs/ipp/home/g/git/python/sfutils')
+        import sfread, plot_aug
 
         gc_r, gc_z = sfread.get_gc()
         tor_d = plot_aug.STRUCT().tor_old

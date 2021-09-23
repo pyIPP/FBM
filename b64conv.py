@@ -1,4 +1,5 @@
 import base64, struct
+import numpy as np
 
 tra_b64 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ<>='
 rfc3548 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
@@ -39,9 +40,10 @@ def tra2flt(sflt, fmt='>f'):
 
 # Fix padding
     while(len(str_ieee) % 8):
-        str_ieee = str_ieee + '='
+        str_ieee += '='
     sval = base64.b64decode(str_ieee.encode())
     num = struct.unpack_from('>f', sval)
+#    num = np.ndarray(sval, '>f')
 
     return -num[0] #TRANSP convention
 

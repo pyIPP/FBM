@@ -26,7 +26,7 @@ class READ_FBM:
         n_mom   = fbm_d['NMOM']
 
 # Time
-        self.dt = fbm_d['AVGTIM']
+        self.dt     = fbm_d['AVGTIM']
         self.time   = fbm_d['time']
         self.nshot  = fbm_d['NSHOT']
         self.bmvol  = fbm_d['BMVOL'][:n_cells]
@@ -229,8 +229,7 @@ if __name__ == '__main__':
     shot = runid[:-3]
     tail = runid[-3:]
 
-    run_dir = '%s/tr_client/AUGD/%s/%s' %(os.getenv('HOME'), shot, tail)
-    f_ac  = '%s/%s.DATA1'    %(run_dir, runid)
+    f_ac  = '%s/tr_client/AUGD/%s/%s/%s.DATA1'    %(os.getenv('HOME'), shot, tail, runid)
 
     fbm = READ_FBM(f_ac)
     print(fbm.dt)

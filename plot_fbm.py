@@ -13,7 +13,6 @@ except:
     from tkinter import filedialog as tkfd
     from tkinter import messagebox as tkmb
 
-import sfread
 import read_ac, plot_birth
 import tkhyper
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -36,6 +35,8 @@ rframe_wid = 750
 fsize = 12
 
 try:
+    sys.path.append('/afs/ipp/home/g/git/python/sfutils')
+    import sfread
     gc_r, gc_z = sfread.get_gc()
     m2cm = 100.
     xpol_lim = (90, 230)
