@@ -133,10 +133,10 @@ def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
 
 # AUG 
     if tok == 'AUGD':
-        sys.path.append('/afs/ipp/home/g/git/python/sfutils')
-        import sfread, plot_aug
+        import plot_aug
+        import aug_sfutils as sf
 
-        gc_r, gc_z = sfread.get_gc()
+        gc_d = sf.getgc()
         tor_d = plot_aug.STRUCT().tor_old
         m2cm = 100.
         xpol_lim = (90, 230)
@@ -222,9 +222,9 @@ def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
         axpol.set_ylim(ypol_lim)
         axtop.set_xlim(xtop_lim)
 
-        if 'gc_r' in locals():
-            for key in gc_r.keys():
-                axpol.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
+        if 'gc_d' in locals():
+            for gc in gc_d.values():
+                axpol.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
         if 'tor_d' in locals():
             for tor_pl in tor_d.values():
                 axtop.plot(m2cm*tor_pl.x, m2cm*tor_pl.y, 'b-')

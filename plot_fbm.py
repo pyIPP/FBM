@@ -35,9 +35,8 @@ rframe_wid = 750
 fsize = 12
 
 try:
-    sys.path.append('/afs/ipp/home/g/git/python/sfutils')
-    import sfread
-    gc_r, gc_z = sfread.get_gc()
+    import aug_sfutils as sf
+    gc_d = sf.getgc()
     m2cm = 100.
     xpol_lim = (90, 230)
     ypol_lim = (-125, 125)
@@ -120,9 +119,9 @@ class FBM:
         axpol = fig_pol.add_subplot(1, 1, 1, aspect='equal')
         axpol.set_xlim(xpol_lim)
         axpol.set_ylim(ypol_lim)
-        if 'gc_r' in globals():
-            for key in gc_r.keys():
-                axpol.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
+        if 'gc_d' in globals():
+            for gc in gc_d.values():
+                axpol.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
 
         self.can_fbm   = {}
         self.cell_mark = {}
