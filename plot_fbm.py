@@ -267,7 +267,7 @@ class FBM:
         if not hasattr(self, 'x_grid'):
             xgrid = np.linspace(self.fbmr.r2d.min(), self.fbmr.r2d.max(), 1000)
             ygrid = np.linspace(self.fbmr.z2d.min(), self.fbmr.z2d.max(), 1000)
-            self.x_grid, self.y_grid = np.meshgrid(xgrid, ygrid)
+            self.x_grid, self.y_grid = np.meshgrid(xgrid, ygrid, indexing='ij')
 
         ax = fig.add_subplot(1, 1, 1, aspect='equal')
         ax.set_xlim(xpol_lim)

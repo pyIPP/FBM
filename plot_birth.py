@@ -158,7 +158,7 @@ def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
     n_pitch = 5
     pitch_edges = np.linspace(0, 1, n_pitch+1)
 
-    xgrid, ygrid = np.meshgrid(R_grid, z_grid)
+    xgrid, ygrid = np.meshgrid(R_grid, z_grid, indexing='ij')
 
 # One tab for each source
 
@@ -317,7 +317,7 @@ def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
 # 2D deposition, poloidal section
         jsplot = 1
         for jcomp in comp_arr:
-            zgrid = dep_matrix[jsrc][jcomp].T
+            zgrid = dep_matrix[jsrc][jcomp]
             ind = np.where(zgrid == 0)
             zgrid[ind] = None
             axpol = fig_pol.add_subplot(1, n_comp, jsplot, aspect='equal')
