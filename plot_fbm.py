@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import sys, os
-from scipy.io import netcdf
+from scipy.io import netcdf_file
 try:
     import Tkinter as tk
     import ttk
@@ -339,7 +339,7 @@ class FBM:
         if not os.path.isfile(tr_file):
             print('%s not found' %tr_file)
             tkmb.showerror("Error", '%s not found')
-        cv_all = netcdf.netcdf_file(tr_file, 'r', mmap=False).variables
+        cv_all = netcdf_file(tr_file, 'r', mmap=False).variables
         bdlist = [x for x in bdens_d.values()]
         sigs = ['BTNT2_DD', 'BBNT2_DD', 'TIME3', 'X'] + bdlist
         tdist = (cv_all['TIME3'].data - self.fbmr.time)**2

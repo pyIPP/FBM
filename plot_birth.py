@@ -1,6 +1,6 @@
 import os, sys
 import numpy as np
-from scipy.io import netcdf
+from scipy.io import netcdf_file
 try:
     import Tkinter as tk
     import ttk
@@ -41,7 +41,7 @@ def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
     cosp = np.cos(phi_tor)
     sinp = np.sin(phi_tor)
  
-    cv = netcdf.netcdf_file(birth_file, 'r', mmap=False).variables
+    cv = netcdf_file(birth_file, 'r', mmap=False).variables
 
     print('PLOT_BIRTH')
     print(birth_file)
