@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os, sys, datetime
 import numpy as np
 import read_ac
@@ -61,9 +63,10 @@ def ac2cdf(f_ac, gc=True):
     bmvol.units = '1/cm**3'
     bmvol.long_name = 'Volume of MC cells'
 
-    for spc_lbl in fbm.species:
+    for jspc, spc_lbl in enumerate(fbm.species):
 
         n_cells, n_pit, n_E = fbm.fdist[spc_lbl].shape
+        nSpcLabel = len(spc_lbl)
 
         Elbl  = 'E_%s'  %spc_lbl
         Albl  = 'A_%s'  %spc_lbl
@@ -80,7 +83,14 @@ def ac2cdf(f_ac, gc=True):
         f.createDimension(Elbl, n_E)
         f.createDimension(ABlbl, n_pit+1)
         f.createDimension(EBlbl, n_E+1)
+        f.createDimension('SpcStr', nSpcLabel)
 
+        SpcIndex = 'SPECIES_%d' %(jspc+1)
+        SpcLabel = f.createVariable(SpcIndex, 'S1', ('SpcStr', ))
+        SpcLabel[:] = [x for x in spc_lbl]
+        SpcLabel.units = ''
+        SpcLabel.long_name = 'Species label'
+        
         E = f.createVariable(Elbl, np.float32, (Elbl, ))
         E[:] = fbm.e_d[spc_lbl]
         E.units = 'eV'
