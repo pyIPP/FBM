@@ -224,12 +224,13 @@ class READ_FBM:
 
 if __name__ == '__main__':
 
+    import config
     runid = '29783A01'
 
     shot = runid[:-3]
     tail = runid[-3:]
 
-    f_ac  = '%s/tr_client/AUGD/%s/%s/%s.DATA1'    %(os.getenv('HOME'), shot, tail, runid)
+    f_ac  = '%s/%s/%s/%s.DATA1'    %(config.tr_clientDir, shot, tail, runid)
 
     fbm = READ_FBM(f_ac)
     print(fbm.dt)

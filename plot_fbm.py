@@ -13,7 +13,7 @@ except:
     from tkinter import filedialog as tkfd
     from tkinter import messagebox as tkmb
 
-import read_ac, plot_birth
+import read_ac, plot_birth, config
 import tkhyper
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 try:
@@ -307,7 +307,7 @@ class FBM:
 
     def load_fbm(self):
 
-        dir_init = os.getenv('HOME')+'/tr_client/AUGD'
+        dir_init = config.tr_clientDir
         self.ffbm = tkfd.askopenfilename(  initialdir=dir_init, filetypes= \
                                         (("FBM", "*.DATA*"),)    )
 

@@ -150,13 +150,13 @@ def parse_ac(f_ac, list_read=None, list_no=None, wrf=False):
 
 if __name__ == '__main__':
 
-    import os
+    import os, config
     runid = '29783A01'
 
     shot = runid[:-3]
     tail = runid[-3:]
 
-    run_dir = '%s/tr_client/AUGD/%s/%s' %(os.getenv('HOME'), shot, tail)
+    run_dir = '%s/%s/%s' %(config.tr_clientDir, shot, tail)
     f_ac  = '%s/%s.DATA1'    %(run_dir, runid)
     list_no = ['FBM_PTCL', 'NSTAT_TRACK_XJA', \
         'TRACK_DE_FLR' , 'TRACK_DR_FLR', 'TRACK_DVPV_FLR', 'TRACK_DZ_FLR', \
