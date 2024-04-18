@@ -32,14 +32,14 @@ class READ_FBM:
         self.bmvol  = fbm_d['BMVOL'][:n_cells]
         vol = 1.e-6*np.sum(self.bmvol)
         print('Volume is %8.4f m^-3' %vol)
-        
+
         rho_lab = np.zeros(n_cells, dtype=int)      # rho index, takes values 0:n_zones-1
 
 #-------------------------
 # Space-time grids from AC
 #-------------------------
 
-        if fbm_d['NLSYM']: # up-down symmetric equilibrium
+        if 'NLSYM' in fbm_d.keys() and fbm_d['NLSYM']: # up-down symmetric equilibrium
             n_sym = 1
             thbdy0 = 0.
             nthsurf = 101
