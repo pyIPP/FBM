@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, traceback
 import numpy as np
 from scipy.io import netcdf_file
 try:
@@ -81,23 +81,23 @@ def read_birth(birth_file, fbm, topframe=None):
         import aug_sfutils as sf
         xlin, ylin, rlin, zlin = plot_aug.nbi_plot(nbis=src_arr, runid=runid)
         gc_d = sf.getgc()
-        tor_d = plot_aug.STRUCT().tor_old
+        tor_d = sf.getgc_tor()
         m2cm = 100.
         xpol_lim = (90, 230)
         ypol_lim = (-125, 125)
         xtop_lim = (-600, 400)
     except:
-        rlin=fbm.rlim_pts
-        zlin=fbm.ylim_pts
-        xext=(fbm.rlim_pts.min()+fbm.rlim_pts.max())*0.025
-        yext=(-fbm.ylim_pts.min()+fbm.ylim_pts.max())*0.025
-        xtop_lim=np.array ([-fbm.rlim_pts.max()-xext,fbm.rlim_pts.max()+xext])
-        xtop_lim=np.round(xtop_lim).astype(int)
-        xpol_lim=np.array ([fbm.rlim_pts.min()-xext,fbm.rlim_pts.max()+xext])
-        ypol_lim=np.array ([fbm.ylim_pts.min()-yext,fbm.ylim_pts.max()+yext])
-        xpol_lim=np.round(xpol_lim).astype(int)
-        ypol_lim=np.round(ypol_lim).astype(int)
-
+        print(traceback.format_exc())
+        rlin = fbm.rlim_pts
+        zlin = fbm.ylim_pts
+        xext = ( fbm.rlim_pts.min() + fbm.rlim_pts.max())*0.025
+        yext = (-fbm.ylim_pts.min() + fbm.ylim_pts.max())*0.025
+        xtop_lim = np.array ([-fbm.rlim_pts.max() - xext, fbm.rlim_pts.max() + xext])
+        xtop_lim = np.round(xtop_lim).astype(int)
+        xpol_lim = np.array ([fbm.rlim_pts.min() - xext, fbm.rlim_pts.max() + xext])
+        ypol_lim = np.array ([fbm.ylim_pts.min() - yext, fbm.ylim_pts.max() + yext])
+        xpol_lim = np.round(xpol_lim).astype(int)
+        ypol_lim = np.round(ypol_lim).astype(int)
 
     j_comp = np.zeros(n_birth, dtype=np.int32)
     ind_nbi = {}
@@ -227,8 +227,8 @@ def read_birth(birth_file, fbm, topframe=None):
             for gc in gc_d.values():
                 axpol.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
         if 'tor_d' in locals():
-            for tor_pl in tor_d.values():
-                axtop.plot(m2cm*tor_pl.x, m2cm*tor_pl.y, 'b-')
+            for tor in tor_d.values():
+                axtop.plot(m2cm*tor.x, m2cm*tor.y, 'b-')
         
         if 'fbm' in locals():
             axtop.plot(Rtor_in *cosp, Rtor_in *sinp, 'r-')
@@ -270,12 +270,12 @@ def read_birth(birth_file, fbm, topframe=None):
                 axpol.plot(Rj[ind], zj[ind], '%so' %colors[jpitch], \
                            label='%3.1f < p.a. < %3.1f' %(p1, p2))
 
-            if 'gc_r' in locals():
-                for key in gc_r.keys():
-                    axpol.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
-            if 'tor_pl' in locals():
-                for tor_pl in tor_d.values():
-                    axtop.plot(m2cm*tor_pl.x, m2cm*tor_pl.y, 'b-')
+            if 'gc_d' in locals():
+                for gc in gc_d.values():
+                    axpol.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
+            if 'tor_d' in locals():
+                for tor in tor_d.values():
+                    axtop.plot(m2cm*tor.x, m2cm*tor.y, 'b-')
 
             if 'fbm' in locals():
                 axtop.plot(Rtor_in *cosp, Rtor_in *sinp, 'r-')
@@ -326,9 +326,9 @@ def read_birth(birth_file, fbm, topframe=None):
             axpol.set_ylim(ypol_lim)
             ctr = axpol.contourf(xgrid, ygrid, zgrid)
             fig_pol.colorbar(ctr, shrink=0.9, aspect=10)
-            if 'gc_r' in locals():
-                for key in gc_r.keys():
-                    axpol.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
+            if 'gc_d' in locals():
+                for gc in gc_d.values():
+                    axpol.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
             if 'fbm' in locals():
                 for irho in range(fbm.rsurf.shape[0]):
                     axpol.plot(fbm.rsurf[irho, :], fbm.zsurf[irho, :], 'r-', linewidth=0.1)

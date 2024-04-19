@@ -22,19 +22,18 @@ except:
 def get_lost(runid, fbm, topframe=None):
 
 # Vessel compoments for plot
-    xext=(fbm.rlim_pts.min()+fbm.rlim_pts.max())*0.05
-    yext=(-fbm.ylim_pts.min()+fbm.ylim_pts.max())*0.05
-    xtop_lim=np.array ([-fbm.rlim_pts.max()-xext,fbm.rlim_pts.max()+xext])
-    xtop_lim=np.round(xtop_lim).astype(int)
-    xpol_lim=np.array ([fbm.rlim_pts.min()-xext,fbm.rlim_pts.max()+xext])
-    ypol_lim=np.array ([fbm.ylim_pts.min()-yext,fbm.ylim_pts.max()+yext])
-    xpol_lim=np.round(xpol_lim).astype(int)
-    ypol_lim=np.round(ypol_lim).astype(int)
-    rlin=fbm.rlim_pts
-    zlin=fbm.ylim_pts
+    xext = ( fbm.rlim_pts.min() + fbm.rlim_pts.max())*0.05
+    yext = (-fbm.ylim_pts.min() + fbm.ylim_pts.max())*0.05
+    xtop_lim = np.array ([-fbm.rlim_pts.max() - xext, fbm.rlim_pts.max() + xext])
+    xtop_lim = np.round(xtop_lim).astype(int)
+    xpol_lim = np.array ([fbm.rlim_pts.min() - xext, fbm.rlim_pts.max() + xext])
+    ypol_lim = np.array ([fbm.ylim_pts.min() - yext, fbm.ylim_pts.max() + yext])
+    xpol_lim = np.round(xpol_lim).astype(int)
+    ypol_lim = np.round(ypol_lim).astype(int)
+    rlin = fbm.rlim_pts
+    zlin = fbm.ylim_pts
 
-
- # Get 
+# Get 
     nr = 141
     nz = 101
     ntheta = 101
@@ -62,7 +61,6 @@ def get_lost(runid, fbm, topframe=None):
     tbm1=fbm.ta
     tbm2=fbm.tb
 
-
     print('PLOT_LOST')
     src_arr = fbm.species
     
@@ -83,42 +81,41 @@ def get_lost(runid, fbm, topframe=None):
     nbsource = ttk.Notebook(topframe, name='nb source')
     nbsource.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
-
     for jsrc in src_arr:
-        weight=np.array(fbm.wghtlost[jsrc])
-        Rj=np.array(fbm.rmjionlost[jsrc])
-        zj=np.array(fbm.yyionlost[jsrc])
-        pwr=np.array(fbm.xksidlost[jsrc])
-        Elost=np.array(fbm.yzelost[jsrc])
-        j_nbi=np.array(fbm.ynbscelost[jsrc]).astype(int)
+        weight = np.array(fbm.wghtlost[jsrc])
+        Rj = np.array(fbm.rmjionlost[jsrc])
+        zj = np.array(fbm.yyionlost[jsrc])
+        pwr = np.array(fbm.xksidlost[jsrc])
+        Elost = np.array(fbm.yzelost[jsrc])
+        j_nbi = np.array(fbm.ynbscelost[jsrc]).astype(int)
         n_lost = len(Rj)
         print('# of MC particles lost: %d' %n_lost)    
-        if n_lost ==0 :
+        if n_lost == 0:
             continue
         j_comp = np.zeros(n_lost, dtype=np.int32)
         j_comp_tot = np.zeros(n_lost, dtype=np.int32)
     
-        (indx_p, )=np.where(fbm.gooselost[jsrc] < 1.000001)
-        (indx_np, )=np.where(fbm.gooselost[jsrc] >= 1.000001)
-        j_comp[indx_p]=1
-        j_comp[indx_np]=2
-        j_comp_tot [indx_p]=3
-        j_comp_tot [indx_np]=3
+        (indx_p , ) = np.where(fbm.gooselost[jsrc] < 1.000001)
+        (indx_np, ) = np.where(fbm.gooselost[jsrc] >= 1.000001)
+        j_comp[indx_p ] = 1
+        j_comp[indx_np] = 2
+        j_comp_tot [indx_p ] = 3
+        j_comp_tot [indx_np] = 3
         comp_arr = np.unique(j_comp)
         n_comp = len(comp_arr)
-        ncols =n_comp +1
+        ncols = n_comp + 1
 
-        pwr_lost_tot=0.0
-        pwr_lost=np.zeros(n_lost)
-        il=0
+        pwr_lost_tot = 0.0
+        pwr_lost = np.zeros(n_lost)
+        il = 0
         while il < n_lost: 
-            pwr_lost[il] =np.array(weight[il]*Elost[il]/(tbm2-tbm1)*1.6021766*1.e-19)
-            pwr_lost_tot +=pwr_lost[il] 
-            il +=1
+            pwr_lost[il] = np.array(weight[il]*Elost[il]/(tbm2 - tbm1)*1.6021766*1.e-19)
+            pwr_lost_tot += pwr_lost[il] 
+            il += 1
 
-        pwr_min=np.min(pwr_lost[np.nonzero(pwr_lost)])
-        pwr_max=np.max(pwr_lost)
-        print(jsrc+'Total power lost, [Watts] ',pwr_lost_tot)
+        pwr_min = np.min(pwr_lost[np.nonzero(pwr_lost)])
+        pwr_max = np.max(pwr_lost)
+        print(jsrc + 'Total power lost, [Watts] ', pwr_lost_tot)
         pwr_edges = np.linspace(np.log10(pwr_min), np.log10(pwr_max), n_pwr+1)
 
         frame_source = tk.Frame(nbsource)
@@ -129,11 +126,11 @@ def get_lost(runid, fbm, topframe=None):
         
         frame_lost = tk.Frame(nblost)
 
-        fig_lost = Figure(figsize=(14.,8.45), dpi=100)
+        fig_lost = Figure(figsize=(14., 8.45), dpi=100)
         can_lost = FigureCanvasTkAgg(fig_lost, master=frame_lost)
         can_lost._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         fig_lost.clf()
-        fig_lost.subplots_adjust(left=0.05, bottom=0.08, right=0.97, top=0.97,  \
+        fig_lost.subplots_adjust(left=0.05, bottom=0.08, right=0.97, top=0.97, \
                                   wspace=0.15, hspace=0)
 
         fig_lost.text(0.5, 0.01, jsrc+' Power losses for %s, t =%6.3f s ' %(runid, tbm1), ha='center',fontsize=16,fontweight='bold')
@@ -154,7 +151,13 @@ def get_lost(runid, fbm, topframe=None):
         axpol.legend(loc=2, numpoints=1, prop={'size': 10})
 
 # Tokamak components
-  
+        try:
+            import aug_sfutils as sf
+            gc_d = sf.getgc()
+            m2cm = 100.
+        except:
+            pass
+
         axpol.set_xlabel(Rlbl, fontsize=fsize,fontweight='bold')
         axpol.set_ylabel(zlbl, fontsize=fsize,fontweight='bold')
         axpol.set_xlim(xpol_lim)
@@ -199,12 +202,9 @@ def get_lost(runid, fbm, topframe=None):
                                                    round(np.float_power(10,p2),2)),markersize=sizes[jpwr])
                 jpwr =jpwr-1
 
-            if 'gc_r' in locals():
-                for key in gc_r.keys():
-                    axpol.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')            
-            if 'tor_pl' in locals():
-                for tor_pl in tor_d.values():
-                    axtop.plot(m2cm*tor_pl.x, m2cm*tor_pl.y, 'b-')
+            if 'gc_d' in locals():
+                for gc in gc_d.values():
+                    axpol.plot(m2cm*gc.r, m2cm*gc.z, 'b-')            
 
             if 'fbm' in locals():
                 for irho in range(fbm.rsurf.shape[0]):

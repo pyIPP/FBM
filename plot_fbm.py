@@ -280,9 +280,9 @@ class FBM:
         ax.set_ylim(ypol_lim)
         ax.plot(rlin, zlin, 'g-', linewidth=2.5)
 
-        if 'gc_r' in globals():
-            for key in gc_r.keys():
-                ax.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
+        if 'gc_d' in globals():
+            for gc in gc_d.values():
+                ax.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
         for irho in range(self.fbmr.r_surf.shape[0]):
             ax.plot(self.fbmr.r_surf[irho, :], self.fbmr.z_surf[irho, :], 'r-', linewidth=0.5)
         for jbar, myr in enumerate(self.fbmr.rbar):
