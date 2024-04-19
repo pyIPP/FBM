@@ -81,7 +81,7 @@ def read_birth(birth_file, fbm, topframe=None):
         import aug_sfutils as sf
         xlin, ylin, rlin, zlin = plot_aug.nbi_plot(nbis=src_arr, runid=runid)
         gc_d = sf.getgc()
-        tor_d = sf.getgc_tor()
+        tor_d = sf.getgc_tor(rotate=False)
         m2cm = 100.
         xpol_lim = (90, 230)
         ypol_lim = (-125, 125)

@@ -80,6 +80,8 @@ class FBM:
         self.lostframe  = ttk.Frame(nb)
         self.neutframe  = ttk.Frame(nb)
         self.trapframe  = ttk.Frame(nb)
+        style = ttk.Style()
+        style.theme_settings("default", {"TNotebook.Tab": {"configure": {"padding": [20, 5]}}})
 
         nb.add(self.fbmframe  , text='2D dist')
         nb.add(self.trapframe , text='Trap. frac.')
