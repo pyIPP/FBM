@@ -22,12 +22,39 @@ def parse_ac(f_ac, list_read=None, list_no=None, wrf=False):
     ac_d['encode'] = int(tmp[3])
     j = int(tmp[4])
 
-    tmp = lines[1].split()
-    ac_d['numavg']  = int(tmp[0])
-    ac_d['mthdavg'] = int(tmp[1])
-    ac_d['avgtim']  = float(tmp[2])
-    ac_d['avgsamp'] = float(tmp[3])
+    i=0
+    while i < nlin:
+        i +=1
+        if 'NUMAVG' in lines[i].split():
+            tmp = lines[i].split()
+            try:
+                ac_d['numavg']  = int(tmp[2])
+            except:
+                pass
+            break
+    i=0
+    while i < nlin:
+        i +=1
+        if 'MTHDAVG' in lines[i].split():
+            tmp = lines[i].split()
+            ac_d['mthdavg']  = int(tmp[2])
+            break
+    i=0
+    while i < nlin:
+        i +=1
+        if 'AVGTIM' in lines[i].split():
+            tmp = lines[i].split()
+            ac_d['avgtim']  =  b64conv.tra2dbl(tmp[2])
+            break
 
+    i=0
+    while i < nlin:
+        i=i+1
+        if 'AVGSAMP' in lines[i].split():
+            tmp = lines[i].split()
+            ac_d['avgsamp']  = b64conv.tra2dbl(tmp[2])
+            break
+    
     lmax = nlin
 
     if wrf:

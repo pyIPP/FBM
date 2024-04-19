@@ -18,8 +18,7 @@ except:
     from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg as nt2tk
 
 
-def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
-
+def read_birth(birth_file, fbm, topframe=None):
 
     print('Reading %s' %birth_file)
 
@@ -35,8 +34,8 @@ def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
 # Get 
     ntheta = 101
     Rmaj = fbm.rsurf[0, 0]
-    Rtor_in  = np.min(fbm.rsurf)
-    Rtor_out = np.max(fbm.rsurf)
+    Rtor_in  = np.min(fbm.rsurf[np.nonzero(fbm.rsurf)])
+    Rtor_out = fbm.rsurf.max()
     phi_tor = np.linspace(0, 2*np.pi, ntheta)
     cosp = np.cos(phi_tor)
     sinp = np.sin(phi_tor)
@@ -75,12 +74,30 @@ def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
     src_arr = np.unique(j_nbi)
     
     print('Sources: ', src_arr)
-
-# Vessel compoments for plot
-
-    if tok == 'AUGD':
+    
+    # Vessel compoments for plot
+    try:
         import plot_aug
+        import aug_sfutils as sf
         xlin, ylin, rlin, zlin = plot_aug.nbi_plot(nbis=src_arr, runid=runid)
+        gc_d = sf.getgc()
+        tor_d = plot_aug.STRUCT().tor_old
+        m2cm = 100.
+        xpol_lim = (90, 230)
+        ypol_lim = (-125, 125)
+        xtop_lim = (-600, 400)
+    except:
+        rlin=fbm.rlim_pts
+        zlin=fbm.ylim_pts
+        xext=(fbm.rlim_pts.min()+fbm.rlim_pts.max())*0.025
+        yext=(-fbm.ylim_pts.min()+fbm.ylim_pts.max())*0.025
+        xtop_lim=np.array ([-fbm.rlim_pts.max()-xext,fbm.rlim_pts.max()+xext])
+        xtop_lim=np.round(xtop_lim).astype(int)
+        xpol_lim=np.array ([fbm.rlim_pts.min()-xext,fbm.rlim_pts.max()+xext])
+        ypol_lim=np.array ([fbm.ylim_pts.min()-yext,fbm.ylim_pts.max()+yext])
+        xpol_lim=np.round(xpol_lim).astype(int)
+        ypol_lim=np.round(ypol_lim).astype(int)
+
 
     j_comp = np.zeros(n_birth, dtype=np.int32)
     ind_nbi = {}
@@ -100,10 +117,10 @@ def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
 
     nr = 141
     nz = 101
-    Rmin = 100
-    Rmax = 240
-    zmin = -100
-    zmax = 100
+    Rmin = Rtor_in
+    Rmax = Rtor_out
+    zmin = fbm.zsurf.min()
+    zmax = fbm.zsurf.max()
     R_grid = np.linspace(Rmin, Rmax, nr)
     z_grid = np.linspace(zmin, zmax, nz)
     dep_matrix = {}
@@ -130,22 +147,6 @@ def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
 #------
 # Plots
 #------
-
-# AUG 
-    if tok == 'AUGD':
-        import plot_aug
-        import aug_sfutils as sf
-
-        gc_d = sf.getgc()
-        tor_d = plot_aug.STRUCT().tor_old
-        m2cm = 100.
-        xpol_lim = (90, 230)
-        ypol_lim = (-125, 125)
-        xtop_lim = (-600, 400)
-    else:
-        xpol_lim = (30, 330)
-        ypol_lim = (-200, 200)
-        xtop_lim = (-800, 600)
 
     Rlbl = 'R [cm]'
     zlbl = 'z [cm]'
@@ -235,13 +236,12 @@ def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
             axtop.plot(Rmaj*cosp, Rmaj*sinp, 'r--')
 
             for irho in range(fbm.rsurf.shape[0]):
-                axpol.plot(fbm.rsurf[irho, :], fbm.zsurf[irho, :], 'r-')
+                axpol.plot(fbm.rsurf[irho, :], fbm.zsurf[irho, :], 'r-', linewidth=0.1)
             for jbar, myr in enumerate(fbm.rbar):
-                axpol.plot(myr, fbm.zbar[jbar], 'r-')
+                axpol.plot(myr, fbm.zbar[jbar], 'r-', linewidth=0.1)
 
-        if 'xlin' in locals():
-            axtop.plot(xlin[jnb], ylin[jnb], 'g-', linewidth=2.5)
-            axpol.plot(rlin[jnb], zlin[jnb], 'g-', linewidth=2.5)
+        if 'rlin' in locals():
+            axpol.plot(rlin, zlin, 'g-', linewidth=2.5)
 
 # For each species overplot 5 pitch angle range
 
@@ -283,13 +283,12 @@ def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
                 axtop.plot(Rmaj*cosp, Rmaj*sinp, 'r--')
 
                 for irho in range(fbm.rsurf.shape[0]):
-                    axpol.plot(fbm.rsurf[irho, :], fbm.zsurf[irho, :], 'r-')
+                    axpol.plot(fbm.rsurf[irho, :], fbm.zsurf[irho, :], 'r-', linewidth=0.1)
                 for jbar, myr in enumerate(fbm.rbar):
-                    axpol.plot(myr, fbm.zbar[jbar], 'r-')
+                    axpol.plot(myr, fbm.zbar[jbar], 'r-', linewidth=0.1)
 
-            if 'xlin' in locals():
-                axtop.plot(xlin[jnb], ylin[jnb], 'g-', linewidth=2.5)
-                axpol.plot(rlin[jnb], zlin[jnb], 'g-', linewidth=2.5)
+            if 'rlin' in locals():
+                axpol.plot(rlin, zlin, 'g-', linewidth=2.5)
 
             axtop.legend(loc=2, numpoints=1, prop={'size': 8})
             axpol.legend(loc=2, numpoints=1, prop={'size': 8})
@@ -332,12 +331,11 @@ def read_birth(birth_file, fbm, topframe=None, tok='AUGD'):
                     axpol.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
             if 'fbm' in locals():
                 for irho in range(fbm.rsurf.shape[0]):
-                    axpol.plot(fbm.rsurf[irho, :], fbm.zsurf[irho, :], 'r-')
+                    axpol.plot(fbm.rsurf[irho, :], fbm.zsurf[irho, :], 'r-', linewidth=0.1)
                 for jbar, myr in enumerate(fbm.rbar):
-                    axpol.plot(myr, fbm.zbar[jbar], 'r-')
-            if 'xlin' in locals():
-                axtop.plot(xlin[jnb], ylin[jnb], 'g-', linewidth=2.5)
-                axpol.plot(rlin[jnb], zlin[jnb], 'g-', linewidth=2.5)
+                    axpol.plot(myr, fbm.zbar[jbar], 'r-', linewidth=0.1)
+            if 'rlin' in locals():
+                axpol.plot(rlin, zlin, 'g-', linewidth=2.5)
 
             jsplot += 1
 

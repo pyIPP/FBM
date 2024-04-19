@@ -13,7 +13,7 @@ except:
     from tkinter import filedialog as tkfd
     from tkinter import messagebox as tkmb
 
-import read_ac, plot_birth, config
+import read_ac, plot_birth, config, plot_lost
 import tkhyper
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 try:
@@ -26,9 +26,8 @@ from matplotlib.figure import Figure
 import matplotlib as mpl
 import numpy as np
 
-
-bdens_d = {'D_NBI': 'BDENS', 'H_NBI': 'BDENS', 'He3_FUSN': 'FDENS_3', \
-           'H_FUSN': 'FDENS_P', 'T_FUSN': 'FDENS_T'}
+bdens_d = {'D_NBI': 'BDENS', 'H_NBI': 'BDENS', 'HE3_FUS': 'FDENS_3', \
+           'H_FUS': 'FDENS_P', 'T_FUS': 'FDENS_T', 'HE4_FUS': 'FDENS_4'}
 
 lframe_wid = 630
 rframe_wid = 750
@@ -41,9 +40,7 @@ try:
     xpol_lim = (90, 230)
     ypol_lim = (-125, 125)
 except:
-    xpol_lim = (30, 330)
-    ypol_lim = (-200, 200)
-
+    pass
 
 class FBM:
 
@@ -78,8 +75,9 @@ class FBM:
         nb = ttk.Notebook(viewer, name='nb')
         nb.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
-        self.fbmframe = ttk.Frame(nb)
+        self.fbmframe   = ttk.Frame(nb)
         self.birthframe = ttk.Frame(nb)
+        self.lostframe  = ttk.Frame(nb)
         self.neutframe  = ttk.Frame(nb)
         self.trapframe  = ttk.Frame(nb)
 
@@ -87,6 +85,7 @@ class FBM:
         nb.add(self.trapframe , text='Trap. frac.')
         nb.add(self.neutframe , text='Bt BB neut')
         nb.add(self.birthframe, text='Birth profile')
+        nb.add(self.lostframe, text='Losses')
 
 #----------
 # FBM plots
@@ -117,8 +116,6 @@ class FBM:
         can_pol._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
         axpol = fig_pol.add_subplot(1, 1, 1, aspect='equal')
-        axpol.set_xlim(xpol_lim)
-        axpol.set_ylim(ypol_lim)
         if 'gc_d' in globals():
             for gc in gc_d.values():
                 axpol.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
@@ -207,8 +204,8 @@ class FBM:
         axbdens.set_xlim([0, 1])
 
         if not hasattr(self, 'fbmr'):
-            axbdens.plot([], [], 'r-', label='From FBM')
-            axbdens.plot([], [], 'g-', label='From CDF')
+            axbdens.plot([], [], 'r-', label='From FBM', linewidth=2.5)
+            axbdens.plot([], [], 'g-', label='From CDF', linewidth=2.5)
         else:
             axbdens.plot(self.fbmr.rho_grid, self.fbmr.bdens[spc_lbl])
             axbdens.plot(self.cv['X'], self.cv[bdens_d[spc_lbl]])
@@ -237,7 +234,7 @@ class FBM:
 
         if hasattr(self, 'fbmr'):
             frac_trap = self.fbmr.btrap[spc_lbl]/self.fbmr.bdens[spc_lbl]
-            axtrapdens.plot(self.fbmr.rho_grid, frac_trap, 'r-')
+            axtrapdens.plot(self.fbmr.rho_grid, frac_trap, 'r-', linewidth=2.5)
         else:
             axtrapdens.plot([], [])
         toolbar = nt2tk(can_trapdens, frame)
@@ -270,14 +267,24 @@ class FBM:
             self.x_grid, self.y_grid = np.meshgrid(xgrid, ygrid, indexing='ij')
 
         ax = fig.add_subplot(1, 1, 1, aspect='equal')
+        xext=(self.fbmr.rlim_pts.min()+self.fbmr.rlim_pts.max())*0.025
+        yext=(-self.fbmr.ylim_pts.min()+self.fbmr.ylim_pts.max())*0.025
+        xpol_lim=np.array ([self.fbmr.rlim_pts.min()-xext,self.fbmr.rlim_pts.max()+xext])
+        ypol_lim=np.array ([self.fbmr.ylim_pts.min()-yext,self.fbmr.ylim_pts.max()+yext])
+        xpol_lim=np.round(xpol_lim).astype(int)
+        ypol_lim=np.round(ypol_lim).astype(int)
+        rlin=self.fbmr.rlim_pts
+        zlin=self.fbmr.ylim_pts
+
         ax.set_xlim(xpol_lim)
         ax.set_ylim(ypol_lim)
+        ax.plot(rlin, zlin, 'g-', linewidth=2.5)
 
         if 'gc_r' in globals():
             for key in gc_r.keys():
                 ax.plot(m2cm*gc_r[key], m2cm*gc_z[key], 'b-')
         for irho in range(self.fbmr.r_surf.shape[0]):
-            ax.plot(self.fbmr.r_surf[irho, :], self.fbmr.z_surf[irho, :], 'r-')
+            ax.plot(self.fbmr.r_surf[irho, :], self.fbmr.z_surf[irho, :], 'r-', linewidth=0.5)
         for jbar, myr in enumerate(self.fbmr.rbar):
             ax.plot(myr, self.fbmr.zbar[jbar], 'r-')
 
@@ -357,7 +364,8 @@ class FBM:
         self.plot_neut(self.neutframe)
         self.plot_dist(self.fbmframe)
         self.plot_trap(self.trapframe)
-
+        plot_lost.get_lost(runid, self.fbmr, topframe=self.lostframe)
+      
         birth_file =  '%s/%s_birth.cdf%s' %(fbmdir, runid, t_id)
         plot_birth.read_birth(birth_file, self.fbmr, topframe=self.birthframe)
 

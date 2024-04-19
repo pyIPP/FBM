@@ -14,7 +14,11 @@ class READ_FBM:
             fbm_lbl = 'FBM'
         else:
             fbm_lbl = 'FBM_PTCL'
-        list_read = ['AVGTIM', 'BMVOL', 'EFBM', 'EFBMB', 'XXKSID', fbm_lbl, 'RSURF1', 'YSURF1', 'RMC', 'YMC', 'XZBEAMS', 'ABEAMS', 'NLFPROD', 'RAXIS', 'YAXIS', 'BDENS2']
+        list_read = ['AVGTIM', 'BMVOL', 'EFBM', 'EFBMB', 'XXKSID', fbm_lbl, 'RSURF1', 'YSURF1',
+            'RMC', 'YMC', 'XZBEAMS', 'ABEAMS', 'NLFPROD', 'RAXIS', 'YAXIS', 'BDENS2', 'BDENS2',
+            'RLIM_PTS', 'YLIM_PTS', 'GOOSE_LOST','RMJION_LOST', 'SPECIES_LOST','WGHT_LOST',
+            'XKSID_LOST', 'YNBIEN_LOST','YNBSCE_LOST','YYION_LOST','YZE_LOST',
+            'GTIME_LOST','GTIME1_LOST','GTIME2_LOST']
 
         fbm_d = parse_ac.parse_ac(f_ac, list_read=list_read)
 
@@ -93,6 +97,9 @@ class READ_FBM:
 
         nxsurf = 2*n_zones + 1
         nrho_step2 = nrho_tr//(nxsurf-1)
+        if nrho_step2 == 0 :
+            nrho_step2 = 1
+
         self.thsurf = np.linspace(thbdy0, thbdy1, nthsurf)
         self.xsurf = np.linspace(0, 1, nxsurf)
         print('Nrho step2', nrho_step2, nrho_step1, nrho_tr, nxsurf, n_zones)
@@ -105,6 +112,8 @@ class READ_FBM:
         self.rsurf, self.zsurf = mom2rz.mom2rz(rcos, rsin, zcos, zsin, theta=self.thsurf)
         self.rsurf[0, :] = fbm_d['RAXIS']
         self.zsurf[0, :] = fbm_d['YAXIS']
+        self.rlim_pts= fbm_d['RLIM_PTS']
+        self.ylim_pts= fbm_d['YLIM_PTS']
 
 # MC cells: grid bars
 
@@ -142,6 +151,16 @@ class READ_FBM:
         self.trap_zone  = {}
         self.dens_vol   = {}
         self.trap_vol   = {}
+        self.gtimelost = {}
+        self.wghtlost = {}
+        self.rmjionlost= {}
+        self.yyionlost= {}
+        self.xksidlost= {}
+        self.yzelost= {}
+        self.ynbscelost= {}
+        self.gooselost= {}
+        self.ta = fbm_d['GTIME1_LOST']
+        self.tb= fbm_d['GTIME2_LOST']
 
         n_spec = len(fbm_d['ABEAMS' ])
         self.species = []
@@ -178,8 +197,17 @@ class READ_FBM:
             self.fdist[spc_lbl] = fbm
             self.e_d [spc_lbl] = fbm_d['EFBM' ][:, jspec]
             self.eb_d[spc_lbl] = fbm_d['EFBMB'][:, jspec]
-            self.a_d[spc_lbl] = fbm_d['XXKSID']
-
+            self.a_d[spc_lbl] = np.linspace(-1, 1, num=n_pit)
+            (indx, )=np.where(jspec+1==fbm_d['SPECIES_LOST'])
+            self.gtimelost[spc_lbl]  = fbm_d['GTIME_LOST'][indx]
+            self.wghtlost[spc_lbl]  = fbm_d['WGHT_LOST'][indx]
+            self.rmjionlost[spc_lbl]  = fbm_d['RMJION_LOST'][indx]
+            self.yyionlost[spc_lbl]  = fbm_d['YYION_LOST'][indx]
+            self.xksidlost[spc_lbl]  = fbm_d['XKSID_LOST'][indx]
+            self.yzelost[spc_lbl]  = fbm_d['YZE_LOST'][indx]
+            self.ynbscelost[spc_lbl]  = fbm_d['YNBSCE_LOST'][indx]
+            self.gooselost[spc_lbl]  = fbm_d[ 'GOOSE_LOST'][indx]
+             
 # Trapped particles
 
             fbm_trap = np.zeros((n_cells, n_pit, n_E))
@@ -213,12 +241,15 @@ class READ_FBM:
 
             self.bdens[spc_lbl] = np.tensordot(self.dens_zone[spc_lbl], dpa_dE, axes=((1, 2), (0, 1)))
             self.btrap[spc_lbl] = np.tensordot(self.trap_zone[spc_lbl], dpa_dE, axes=((1, 2), (0, 1)))
-
             self.n_tot[spc_lbl] = np.sum(self.bdens[spc_lbl]*vol_zone)
-            trap_tot = np.sum(self.btrap[spc_lbl]*vol_zone)
-            print('Trapped #%12.4e    Total #%12.4e    Fraction %12.4e' %(trap_tot, self.n_tot[spc_lbl], trap_tot/self.n_tot[spc_lbl]))
-            print('Volume averaged fast ion density #12.4e m^-3' %(self.n_tot[spc_lbl]/vol))
-            self.int_en_pit_frac_trap[spc_lbl] = int_en_pit_trap/self.int_en_pit[spc_lbl]
+            if self.n_tot[spc_lbl] >0 :
+                trap_tot = np.sum(self.btrap[spc_lbl]*vol_zone)
+                print('Trapped #%12.4e    Total #%12.4e    Fraction %12.4e' %(trap_tot, self.n_tot[spc_lbl], trap_tot/self.n_tot[spc_lbl]))
+                print('Volume averaged fast ion density #12.4e m^-3' %(self.n_tot[spc_lbl]/vol))
+                self.int_en_pit_frac_trap[spc_lbl] = int_en_pit_trap/self.int_en_pit[spc_lbl]
+            else:
+                print( 'WARNING! FBM data missing in input file')
+        
         self.bdens2 = np.array(self.bdens2)
 
 
