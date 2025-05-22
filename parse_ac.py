@@ -22,11 +22,9 @@ def parse_ac(f_ac, list_read=None, list_no=None):
     ac_d['time']   = float(tmp[2])
     ac_d['encode'] = int(tmp[3])
 
-    jlin = 0
-    while jlin < nlin:
+    for jlin in range(nlin):
         line = lines[jlin].strip()
         if line[0] != '*': # skip data line, look for next medata line
-            jlin += 1
             continue
         pieces = line.split()
         desc = pieces[0].strip()
@@ -46,26 +44,21 @@ def parse_ac(f_ac, list_read=None, list_no=None):
                 ac_d[lbl] = b64conv.tra2dbl(str64)
             else:
                 ac_d[lbl] = None
-            jlin += 1
         else: # ndim > 0, start collecting data from the following line
 # If there is a list_read, list_no is ignored
             if list_read is not None:
                 if lbl not in list_read:
-                    jlin += 1
                     continue
             else:
                 if list_no is not None and lbl in list_no:
-                    jlin += 1
                     continue
-            jlin += 1
-            line = lines[jlin].strip()
+            line = lines[jlin+1].strip()
             pieces = line.split()
             size = [b64conv.tra2int(sval) for sval in pieces]
-            if dtyp not in ('L', 'I', 'R', 'D'):
-                jlin += 1
+            if dtyp not in ('L', 'I', 'R', 'D'): # not reading complex, if any
                 continue
             line_arr = []
-            for djlin, lin in enumerate(lines[jlin+1: ]):
+            for lin in lines[jlin+2: ]:
                 if lin[0] == '*':
                     break
                 line_arr.append(lin.strip())
@@ -106,7 +99,6 @@ def parse_ac(f_ac, list_read=None, list_no=None):
                         else:
                             datarr.append(b64conv.tra2dbl(sval))
                 ac_d[lbl] = np.array(datarr, dtype=np.float64)
-            jlin += 1
         if ndim > 1:
             ac_d[lbl] = ac_d[lbl].reshape(size[::-1]).T
 
