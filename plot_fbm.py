@@ -50,6 +50,11 @@ class FBM:
 # Widget frame
 
         viewer = tk.Tk()
+        try:
+            viewer.tk.call("tk", "scaling", 1.0)
+            viewer.tk_setPalette(background='white', foreground='black')
+        except Exception as e:
+            print("Could not set palette:", e)
         xmax = viewer.winfo_screenwidth()
         ymax = viewer.winfo_screenheight()
         width  = min(lframe_wid + rframe_wid, int(0.95*xmax))

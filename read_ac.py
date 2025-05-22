@@ -212,9 +212,10 @@ class READ_FBM:
 
             fbm_trap = np.zeros((n_cells, n_pit, n_E))
             self.trap_pit[spc_lbl] = 1. - rmaj_min[rho_lab[:]]/self.r2d[:]
-            for jcell in range(n_cells):
-                ind_trap = (self.a_d[spc_lbl]**2 <= self.trap_pit[spc_lbl][jcell])
-                fbm_trap[jcell, ind_trap, :] = fbm[jcell, ind_trap, :]
+            a_squared = self.a_d[spc_lbl]**2
+            trap_thresholds = self.trap_pit[spc_lbl][:, np.newaxis]  # shape: (n_cells, 1)
+            mask = a_squared <= trap_thresholds  # shape: (n_cells, N)
+            fbm_trap[mask] = fbm[mask]
 
 # Integrals
 
@@ -242,7 +243,7 @@ class READ_FBM:
             self.bdens[spc_lbl] = np.tensordot(self.dens_zone[spc_lbl], dpa_dE, axes=((1, 2), (0, 1)))
             self.btrap[spc_lbl] = np.tensordot(self.trap_zone[spc_lbl], dpa_dE, axes=((1, 2), (0, 1)))
             self.n_tot[spc_lbl] = np.sum(self.bdens[spc_lbl]*vol_zone)
-            if self.n_tot[spc_lbl] >0 :
+            if self.n_tot[spc_lbl] > 0:
                 trap_tot = np.sum(self.btrap[spc_lbl]*vol_zone)
                 print('Trapped #%12.4e    Total #%12.4e    Fraction %12.4e' %(trap_tot, self.n_tot[spc_lbl], trap_tot/self.n_tot[spc_lbl]))
                 print('Volume averaged fast ion density #12.4e m^-3' %(self.n_tot[spc_lbl]/vol))

@@ -5,11 +5,12 @@ tra_b64 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ<>='
 rfc3548 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
 
 tr2def = {}
+char2pos = {}
 for pos, char in enumerate(tra_b64):
     tr2def[char] = rfc3548[pos]
+    char2pos[char] = pos
 
 def tra2ieee(str_in):
-
     str_out = ''
     for char in str_in:
         str_out += tr2def[char]
@@ -17,27 +18,22 @@ def tra2ieee(str_in):
     return(str_out)
 
 def tra2log(slog):
-
     return (slog.strip().upper() == 'T')
 
 def tra2int(sint):
-
     sint = sint.strip()
     if sint[0] == '-':
         sign = -1
         sint = sint[1:]
     else:
         sign = 1
-
     num = 0
     for jexp, char in enumerate(sint[::-1]):
-        num += 64**jexp * tra_b64.find(char)
+        num += 64**jexp * char2pos[char]
     return sign*num
 
 def tra2flt(sflt, fmt='>f'):
-
     str_ieee = tra2ieee(sflt)
-
 # Fix padding
     while(len(str_ieee) % 8):
         str_ieee += '='
@@ -48,7 +44,6 @@ def tra2flt(sflt, fmt='>f'):
     return -num[0] #TRANSP convention
 
 def tra2dbl(sdbl):
-
     exp = tra2int(sdbl[:2])
     ic1 = tra2int(sdbl[2:7])
     ic2 = tra2int(sdbl[7:12])
