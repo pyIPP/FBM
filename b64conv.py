@@ -4,33 +4,29 @@ import numpy as np
 tra_b64 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ<>='
 rfc3548 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
 
-tr2def = {}
-char2pos = {}
-for pos, char in enumerate(tra_b64):
-    tr2def[char] = rfc3548[pos]
-    char2pos[char] = pos
+tr2def = {c: r for c, r in zip(tra_b64, rfc3548)}
+char2pos = {c: i for i, c in enumerate(tra_b64)}
 
 def tra2ieee(str_in):
-    str_out = ''
-    for char in str_in:
-        str_out += tr2def[char]
-
-    return(str_out)
-
-def tra2log(slog):
-    return (slog.strip().upper() == 'T')
+    return ''.join(tr2def[char] for char in str_in)
 
 def tra2int(sint):
     sint = sint.strip()
-    if sint[0] == '-':
-        sign = -1
+    sign = -1 if sint.startswith('-') else 1
+    if sint[0] in '+-':
         sint = sint[1:]
-    else:
-        sign = 1
-    num = 0
-    for jexp, char in enumerate(sint[::-1]):
-        num += 64**jexp * char2pos[char]
-    return sign*num
+    num = sum(char2pos[char] * (64 ** i) for i, char in enumerate(reversed(sint)))
+    return sign * num
+
+def base64_to_int_vec(strs):
+    def decode_one(s):
+        s = s.strip()
+        sign = -1 if s.startswith('-') else 1
+        if s[0] in '+-':
+            s = s[1:]
+        return sign * sum(char2pos[c] * (64 ** i) for i, c in enumerate(reversed(s)))
+    
+    return np.array([decode_one(s) for s in strs], dtype=np.int64)
 
 def tra2flt(sflt, fmt='>f'):
     str_ieee = tra2ieee(sflt)

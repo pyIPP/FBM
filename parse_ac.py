@@ -2,6 +2,8 @@ import time
 import numpy as np
 import b64conv
 
+strlen_d = {'R': 6, 'D': 12}
+nptype_d = {'R': np.float32, 'D': np.float64}
 
 def parse_ac(f_ac, list_read=None, list_no=None):
 
@@ -22,31 +24,38 @@ def parse_ac(f_ac, list_read=None, list_no=None):
     ac_d['time']   = float(tmp[2])
     ac_d['encode'] = int(tmp[3])
 
-    for jl, line in enumerate(lines):
+    jlin = 0
+    while jlin < nlin:
+        line = lines[jlin].strip()
         pieces = line.split()
         if 'NUMAVG' in pieces:
+            jlin += 1
             try:
                 ac_d['numavg'] = int(pieces[2])
             except:
                 pass
         if 'MTHDAVG' in pieces:
             ac_d['mthdavg']  = int(pieces[2])
-        if 'AVGTIM' in pieces:
+            jlin += 1
+        elif 'AVGTIM' in pieces:
             ac_d['avgtim']  =  b64conv.tra2dbl(pieces[2])
-        if 'AVGSAMP' in pieces:
+            jlin += 1
+        elif 'AVGSAMP' in pieces:
             ac_d['avgsamp'] = b64conv.tra2dbl(pieces[2])
+            jlin += 1
         else:
-            if line[0] != '*': # non data
+            if line[0] != '*': # data line
+                jlin += 1
                 continue
             desc = pieces[0].strip()
             dtyp = desc[1]
-            ndim  = int(desc[2])
+            ndim = int(desc[2])
             lbl = pieces[1].strip()
-            if ndim == 0: # scalars
+            if ndim == 0: # scalars, values on the same line
                 if dtyp not in ('C', ):
                     str64 = pieces[2]
                 if dtyp == 'L':
-                    ac_d[lbl] = b64conv.tra2log(str64)
+                    ac_d[lbl] = str64.strip().upper() == 'T'
                 elif dtyp == 'I':
                     ac_d[lbl] = b64conv.tra2int(str64)
                 elif dtyp == 'R':
@@ -55,52 +64,49 @@ def parse_ac(f_ac, list_read=None, list_no=None):
                     ac_d[lbl] = b64conv.tra2dbl(str64)
                 else:
                     ac_d[lbl] = None
-            else: # ndim > 0
-                str64 = lines[jl + 1].strip()
-                tmp = str64.split()
-                size = [b64conv.tra2int(sval) for sval in tmp]
+                jlin += 1
+            else: # ndim > 0, start collecting data from the following line
+                jlin += 1
+                line = lines[jlin].strip()
+                pieces = line.split()
+                size = [b64conv.tra2int(sval) for sval in pieces]
+#                print(lbl, 'ciao', jlin, '|', size)
 # If there is a list_read, list_no is ignored
                 if list_read is not None:
                     if lbl not in list_read:
+                        jlin += 1
                         continue
                 else:
                     if list_no is not None and lbl in list_no:
-                        continue
-                datarr = []
-                jlin = jl + 2
-                lin2 = lines[jlin]
-                if dtyp == 'L':
-                    for lin in lines[jl + 2:]:
-                        if lin[0] == '*':
-                            break
-                        datarr.extend(b64conv.tra2log(sval) for sval in lin)
-                    ac_d[lbl] = np.array(datarr, dtype=bool)
-                elif dtyp == 'I':
-                    lin = lines[jlin]
-                    while lin[0] != '*':
-                        lin = lin.replace('-',' -')
-                        tmp = lin.split()
-                        datarr += [b64conv.tra2int(sval) for sval in tmp]
                         jlin += 1
-                        if lin[0] == '*':
-                            break
-                        lin = lines[jlin]
-                    ac_d[lbl] = np.array(datarr, dtype=np.int32)
+                        continue
+                if dtyp not in ('L', 'I', 'R', 'D'):
+                    jlin += 1
+                    continue
+                line_arr = []
+                for djlin, lin in enumerate(lines[jlin+1: ]):
+                    if lin[0] == '*':
+                        break
+                    line_arr.append(lin)
+                if dtyp == 'L':
+                    strval = ''.join(line_arr).upper()
+                    ac_d[lbl] = np.array(list(strval)) == 'T'
+                elif dtyp == 'I':
+                    words = ' '.join(line_arr).replace('-',' -').split()
+                    ac_d[lbl] = b64conv.base64_to_int_vec(words)
+                    print(lbl, ac_d[lbl])
                 if dtyp in ('R', 'D'):
-                    if dtyp == 'R':
-                        strlen = 6
-                        nptype = np.float32
-                    else:
-                        strlen = 12
-                        nptype = np.float64
-                    while lin2[0] != '*':
-                        str_arr = [lin2[start:start+strlen] for start in range(0, len(lin2), strlen)]
+                    datarr = []
+                    strlen = strlen_d[dtyp]
+                    nptype = nptype_d[dtyp]
+                    for lin in line_arr:
+                        str_arr = [lin[start:start+strlen] for start in range(0, len(lin), strlen)]
                         arr = []
                         for sval in str_arr:
                             if sval[0] == '_':
                                 zstr = sval[3:]
                                 n_zero = b64conv.tra2int(zstr)
-                                arr += n_zero*[0]
+                                arr.extend(n_zero*[0])
                             elif len(sval.strip()) < strlen:
                                 arr.append(0)
                             else:
@@ -108,14 +114,11 @@ def parse_ac(f_ac, list_read=None, list_no=None):
                                     arr.append(b64conv.tra2flt(sval))
                                 else: # 'D'
                                     arr.append(b64conv.tra2dbl(sval))
-                        datarr += arr
-                        jlin += 1
-                        if jlin == nlin:
-                            break
-                        lin2 = lines[jlin]
+                        datarr.extend(arr)
                     ac_d[lbl] = np.array(datarr, dtype=nptype)
-        if ndim > 1:
-            ac_d[lbl] = ac_d[lbl].reshape(size[::-1]).T
+                jlin += djlin + 1
+            if ndim > 1:
+                ac_d[lbl] = ac_d[lbl].reshape(size[::-1]).T
 
     return ac_d
 
@@ -144,4 +147,5 @@ if __name__ == '__main__':
     for key in ('BDENS', ):
         print(key)
         print(fbm_d[key])
+    print(len(fbm_d))
 
