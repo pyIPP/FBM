@@ -77,14 +77,14 @@ def parse_ac(f_ac, list_read=None, list_no=None):
                     ac_d[lbl] = np.array(datarr, dtype=bool)
                 elif dtyp == 'I':
                     lin = lines[jlin]
-                    lin = lin.replace('-',' -')
                     while lin[0] != '*':
+                        lin = lin.replace('-',' -')
                         tmp = lin.split()
                         datarr += [b64conv.tra2int(sval) for sval in tmp]
                         jlin += 1
                         if lin[0] == '*':
                             break
-                        lin = lines[jlin].replace('-',' -')
+                        lin = lines[jlin]
                     ac_d[lbl] = np.array(datarr, dtype=np.int32)
                 if dtyp in ('R', 'D'):
                     if dtyp == 'R':
