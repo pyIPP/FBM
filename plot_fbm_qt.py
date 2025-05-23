@@ -9,6 +9,7 @@ from scipy.io import netcdf_file
 import numpy as np
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from scipy.interpolate import griddata
 
 try:
     from PyQt5.QtWidgets import QMainWindow, QWidget, QApplication, QGridLayout, QMenu, QAction, QLabel, QPushButton, QLineEdit, QCheckBox, QSpinBox, QDoubleSpinBox, QFileDialog, QRadioButton, QButtonGroup, QTabWidget, QVBoxLayout, QHBoxLayout
@@ -97,13 +98,13 @@ class FBM(QMainWindow):
         dist_left_layout = QHBoxLayout()
         dist_left_widget.setLayout(dist_left_layout)
         fig = Figure()
-        distCanvas = FigureCanvas(fig)
+        self.distCanvas = FigureCanvas(fig)
         self.axpol = fig.add_subplot(111, aspect='equal')
         if 'gc_d' in globals():
             for gc in gc_d.values():
                 self.axpol.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
 # Add canvas to the left widget
-        dist_left_layout.addWidget(distCanvas)
+        dist_left_layout.addWidget(self.distCanvas)
 # Add left and right frame to the dist_frame
         dist_layout.addWidget(dist_left_widget)
 
@@ -162,7 +163,7 @@ class FBM(QMainWindow):
 
     def load_fbm(self):
 
-        dir_init = config.tr_clientDir
+        dir_init = config.tr_clientDir + '/29795/A05'
         ffbm =  QFileDialog.getOpenFileName(self, 'Open file', \
             '%s/' %dir_init, "AC files (*.DATA*)")
         if qt5:
@@ -200,8 +201,28 @@ class FBM(QMainWindow):
             if lbl in cv_all.keys():
                 self.cv[lbl] = cv_all[lbl][jtclose]
 
-        
-    
+# Plots
+        r_grid, z_grid = np.meshgrid(
+        np.linspace(self.fbmr.r2d.min(), self.fbmr.r2d.max(), 100),
+        np.linspace(self.fbmr.z2d.min(), self.fbmr.z2d.max(), 100))
+#        f_in = self.fbmr.int_en_pit_frac_trap[spc_lbl]
+        f_in = self.fbmr.int_en_pit[spc_lbl]
+        self.contourPlot(self.axpol, r_grid, z_grid, f_in)
+        self.distCanvas.draw()
+
+
+    def contourPlot(self, ax, r_grid, z_grid, f_in):
+        if 'gc_d' in globals():
+            for gc in gc_d.values():
+                ax.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
+        for irho in range(self.fbmr.r_surf.shape[0]):
+            ax.plot(self.fbmr.r_surf[irho, :], self.fbmr.z_surf[irho, :], 'r-', linewidth=0.5)
+        for jbar, myr in enumerate(self.fbmr.rbar):
+            ax.plot(myr, self.fbmr.zbar[jbar], 'r-')
+        f_grid = griddata((self.fbmr.r2d, self.fbmr.z2d), f_in, (r_grid, z_grid), method='cubic')
+        ax.contourf(r_grid, z_grid, f_grid, levels=50, cmap='viridis')
+
+
 if __name__ == '__main__':
 
 
