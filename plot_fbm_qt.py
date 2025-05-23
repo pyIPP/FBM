@@ -87,44 +87,67 @@ class FBM(QMainWindow):
 # Tabs
 #-----
 
+# Distribution TAB
         qdist = QWidget()
         dist_layout = QHBoxLayout()
         qdist.setLayout(dist_layout)
         qtabs.addTab(qdist, '2D dist')
         dist_right_widget = QWidget()
-
-# Add them to the layout
-        dist_left_widget = QWidget()
-        dist_left_layout = QHBoxLayout()
+        dist_left_widget  = QWidget()
+        dist_left_layout  = QHBoxLayout()
+        dist_right_layout = QVBoxLayout()
         dist_left_widget.setLayout(dist_left_layout)
-        fig = Figure()
-        self.distCanvas = FigureCanvas(fig)
-        self.axpol = fig.add_subplot(111, aspect='equal')
+        dist_right_widget.setLayout(dist_right_layout)
+
+        figdist1 = Figure()
+        self.distCanvas1 = FigureCanvas(figdist1)
+        self.axdist1 = figdist1.add_subplot(111, aspect='equal')
+# Plot vessel even before reading FBM file
         if 'gc_d' in globals():
             for gc in gc_d.values():
-                self.axpol.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
-# Add canvas to the left widget
-        dist_left_layout.addWidget(self.distCanvas)
-# Add left and right frame to the dist_frame
+                self.axdist1.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
+        dist_left_layout.addWidget(self.distCanvas1)
         dist_layout.addWidget(dist_left_widget)
-
         dist_layout.addWidget(dist_right_widget)
 
+# Trapped particle tab
         qtrap = QWidget()
-        trap_layout = QGridLayout()
+        trap_layout = QHBoxLayout()
         qtrap.setLayout(trap_layout)
         qtabs.addTab(qtrap, 'Trap. Frac')
+        trap_right_widget = QWidget()
+        trap_left_widget  = QWidget()
+        trap_left_layout  = QHBoxLayout()
+        trap_right_layout = QVBoxLayout()
+        trap_left_widget.setLayout(trap_left_layout)
+        trap_right_widget.setLayout(trap_right_layout)
 
+        figtrap1 = Figure()
+        self.trapCanvas1 = FigureCanvas(figtrap1)
+        self.axtrap1 = figtrap1.add_subplot(111, aspect='equal')
+        trap_left_layout.addWidget(self.trapCanvas1)
+        trap_layout.addWidget(trap_left_widget)
+        trap_layout.addWidget(trap_right_widget)
+
+# Neutron tab
         qneut = QWidget()
-        neut_layout = QGridLayout()
+        neut_layout = QHBoxLayout()
         qneut.setLayout(neut_layout)
-        qtabs.addTab(qneut, 'Bt BB neut')
+        qtabs.addTab(qneut, 'Neut. Frac')
 
+        figneut = Figure()
+        self.neutCanvas = FigureCanvas(figneut)
+        self.axneut1 = figneut.add_subplot(121, aspect='equal')
+        self.axneut2 = figneut.add_subplot(122, aspect='equal')
+        neut_layout.addWidget(self.neutCanvas)
+
+# Fast ions birth location
         qbirth = QWidget()
         birth_layout = QGridLayout()
         qbirth.setLayout(birth_layout)
         qtabs.addTab(qbirth, 'Birth profile')
 
+# NBI losses
         qloss = QWidget()
         loss_layout = QGridLayout()
         qloss.setLayout(loss_layout)
@@ -201,14 +224,37 @@ class FBM(QMainWindow):
             if lbl in cv_all.keys():
                 self.cv[lbl] = cv_all[lbl][jtclose]
 
+        btneut = self.cv['BTNT2_DD']
+        bbneut = self.cv['BBNT2_DD']
+        if (np.max(btneut) == 0) and (np.max(bbneut) == 0):
+            print('Zero neutrons')
+            return
+        indbt = (btneut == 0)
+        indbb = (btneut == 0)
+        btneut[indbt] = np.nan
+        bbneut[indbb] = np.nan
+
+#--------
 # Plots
+#--------
+
         r_grid, z_grid = np.meshgrid(
         np.linspace(self.fbmr.r2d.min(), self.fbmr.r2d.max(), 100),
         np.linspace(self.fbmr.z2d.min(), self.fbmr.z2d.max(), 100))
-#        f_in = self.fbmr.int_en_pit_frac_trap[spc_lbl]
+
+# FBM integrated over E, mu
         f_in = self.fbmr.int_en_pit[spc_lbl]
-        self.contourPlot(self.axpol, r_grid, z_grid, f_in)
-        self.distCanvas.draw()
+        self.contourPlot(self.axdist1, r_grid, z_grid, f_in)
+
+# Trapped particle fraction
+        f_in = self.fbmr.int_en_pit_frac_trap[spc_lbl]
+        self.contourPlot(self.axtrap1, r_grid, z_grid, f_in)
+
+# Neutron
+        f_in = btneut
+        self.contourPlot(self.axneut1, r_grid, z_grid, f_in)
+        f_in = bbneut
+        self.contourPlot(self.axneut2, r_grid, z_grid, f_in)
 
 
     def contourPlot(self, ax, r_grid, z_grid, f_in):
@@ -221,6 +267,10 @@ class FBM(QMainWindow):
             ax.plot(myr, self.fbmr.zbar[jbar], 'r-')
         f_grid = griddata((self.fbmr.r2d, self.fbmr.z2d), f_in, (r_grid, z_grid), method='cubic')
         ax.contourf(r_grid, z_grid, f_grid, levels=50, cmap='viridis')
+        ax.set_xlabel('R [cm]')
+        ax.set_ylabel('Z [cm]')
+        canvas = ax.figure.canvas
+        canvas.draw()
 
 
 if __name__ == '__main__':
