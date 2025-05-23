@@ -1,13 +1,10 @@
 import base64, struct
-import numpy as np
 
 tra_b64 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ<>='
 rfc3548 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
 
 tr2def = {c: r for c, r in zip(tra_b64, rfc3548)}
 char2pos = {c: i for i, c in enumerate(tra_b64)}
-
-transp2def = str.maketrans(tra_b64, rfc3548)
 
 def tra2ieee(str_in):
     return ''.join(tr2def[char] for char in str_in)
@@ -27,26 +24,13 @@ def base64_to_int_vec(strs):
         if s[0] in '+-':
             s = s[1:]
         return sign * sum(char2pos[c] * (64 ** i) for i, c in enumerate(reversed(s)))
-    return np.array([decode_one(s) for s in strs], dtype=np.int64)
+    return [decode_one(s) for s in strs]
 
 def tra2flt(sflt, fmt='>f'):
     str_ieee = tra2ieee(sflt) + '=='
     sval = base64.b64decode(str_ieee.encode())
     num = struct.unpack_from(fmt, sval)[0]
     return -num #TRANSP convention
-
-def tra2flt_numpy(sflt_list):
-    ieee_strs = [s.translate(tr2def) + '==' for s in sflt_list]
-    decoded = b''.join(base64.b64decode(s) for s in ieee_strs)
-    return np.frombuffer(decoded, dtype='>f')
-
-def tra2flt_batch(sflt_list, fmt='>f'):
-# Translate all strings and pad with '=='
-    ieee_strs = [s.translate(transp2def) + '==' for s in sflt_list]    
-# Decode all base64 strings
-    decoded = [base64.b64decode(s) for s in ieee_strs]
-# Unpack floats using struct
-    return [struct.unpack_from(fmt, d)[0] for d in decoded]
 
 def tra2dbl(sdbl):
     (exp, ic1, ic2) = base64_to_int_vec((sdbl[:2], sdbl[2:7], sdbl[7:12]))
@@ -59,10 +43,8 @@ def tra2dbl(sdbl):
     if ic1 == 0:
         z = 0.
     else:
-        z  = 10.**exp *ic1 *1.e-9
-        z += 10.**exp *ic2 *1.e-18
-        z *= sgn
-
+        scale = 10.0 ** exp
+        z = scale * (ic1 * 1e-9 + ic2 * 1e-18) * sgn
     return z
 
 
