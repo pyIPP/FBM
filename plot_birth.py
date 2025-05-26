@@ -4,11 +4,9 @@ from scipy.io import netcdf_file
 try:
     import Tkinter as tk
     import ttk
-    import tkMessageBox as tkmb
 except:
     import tkinter as tk
     from tkinter import ttk
-    from tkinter import messagebox as tkmb
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg

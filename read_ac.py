@@ -30,6 +30,7 @@ class READ_FBM:
         n_mom   = fbm_d['NMOM']
 
 # Time
+        self.fileName = f_ac
         self.dt     = fbm_d['AVGTIM']
         self.time   = fbm_d['time']
         self.nshot  = fbm_d['NSHOT']
