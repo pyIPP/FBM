@@ -7,6 +7,7 @@ __date__    = '29.05.2025'
 import os, sys, logging, webbrowser
 from scipy.io import netcdf_file
 import numpy as np
+import matplotlib as mpl
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from scipy.interpolate import griddata
@@ -38,7 +39,7 @@ usLocale = QLocale('us')
 fmt = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s: %(message)s', '%H:%M:%S')
 hnd = logging.StreamHandler()
 hnd.setFormatter(fmt)
-logger = logging.getLogger('DPSD_GUI')
+logger = logging.getLogger('FBM_GUI')
 logger.addHandler(hnd)
 logger.setLevel(logging.INFO)
 
@@ -69,24 +70,19 @@ class FBM(QMainWindow):
 
         xwin  = lframe_wid + rframe_wid
         yhead = 44
-        yline = 30
-        ybar  = 48
-        ywin  = 900 + yhead + ybar
-
+        ywin  = 1050
         qhead  = QWidget(self)
-        qbar   = QWidget(self)
         qtabs  = QTabWidget(self)
-        qhead.setGeometry(QRect(0,    0, xwin, yhead))
-        qbar.setGeometry(QRect(0, yhead, xwin, ybar))
-        qtabs.setGeometry(QRect(0, yhead+ybar, xwin, ywin-yhead-ybar))
+        qhead.setGeometry(QRect(0,     0, xwin, yhead))
+        qtabs.setGeometry(QRect(0, yhead, xwin, ywin-yhead))
         qtabs.setStyleSheet("QTabBar::tab { width: 120 }")
         header_grid = QGridLayout(qhead) 
-        tbar_grid   = QGridLayout(qbar) 
 
-#-----
-# Tabs
-#-----
+#------#
+# Tabs #
+#------#
 
+#-----------------
 # Distribution TAB
         qdist = QWidget()
         dist_layout = QHBoxLayout()
@@ -96,20 +92,82 @@ class FBM(QMainWindow):
         dist_left_widget  = QWidget()
         dist_left_layout  = QHBoxLayout()
         dist_right_layout = QVBoxLayout()
+        dist_right1_widget = QWidget()
+        dist_right2_widget = QWidget()
         dist_left_widget.setLayout(dist_left_layout)
         dist_right_widget.setLayout(dist_right_layout)
 
-        figdist1 = Figure()
-        self.distCanvas1 = FigureCanvas(figdist1)
-        self.axdist1 = figdist1.add_subplot(111, aspect='equal')
+        self.figDist = Figure()
+        canvasDist = FigureCanvas(self.figDist)
+        axDist = self.figDist.add_subplot(111, aspect='equal')
 # Plot vessel even before reading FBM file
         if 'gc_d' in globals():
             for gc in gc_d.values():
-                self.axdist1.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
-        dist_left_layout.addWidget(self.distCanvas1)
+                axDist.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
+        dist_left_layout.addWidget(canvasDist)
         dist_layout.addWidget(dist_left_widget)
         dist_layout.addWidget(dist_right_widget)
+# Right column
+        dist_right_layout.addWidget(dist_right1_widget)
+        dist_right_layout.addWidget(dist_right2_widget)
 
+# Buttons in dist_right1_widget
+        widgetHeight = 32
+        textWidth = 100
+        dist_right1_layout = QVBoxLayout()
+        dist_right2_layout = QVBoxLayout()
+        dist_right1_widget.setLayout(dist_right1_layout)
+        dist_right2_widget.setLayout(dist_right2_layout)
+        dist_right1_widget.setFixedHeight(5*widgetHeight)
+        dist_right2_widget.setFixedHeight(ywin - 5*widgetHeight)
+        lbl = QLabel('Right-mouse click on a cell for local FBM plot')
+        thetaCB = QCheckBox('Theta averaged FBM')
+        volCB   = QCheckBox('Voume averaged FBM')
+        thetaCB.setChecked(False)
+        volCB.setChecked(False)
+
+        energy_widget = QWidget()
+        energy_layout = QHBoxLayout()
+        Elbl = QLabel('Emax [keV]')
+        Emax = QLineEdit('100')
+        Emax.setFixedWidth(textWidth) 
+        energy_widget.setLayout(energy_layout)
+        energy_layout.addWidget(Elbl)
+        energy_layout.addWidget(Emax)
+
+        log_widget = QWidget()
+        log_layout = QHBoxLayout()
+        logCB = QCheckBox('Log scale')
+        logCB.setChecked(True)
+        logMinLbl = QLabel('f_log_min')
+        logMaxLbl = QLabel('f_log_max')
+        logMin = QLineEdit('4.5')
+        logMax = QLineEdit('8.5')
+        logMin.setFixedWidth(textWidth)
+        logMax.setFixedWidth(textWidth)
+        log_widget.setLayout(log_layout)
+        for but in (logCB, logMinLbl, logMin, logMaxLbl, logMax):
+            log_layout.addWidget(but)
+
+# BDENS canvas in dist_right2_widget
+
+        self.figBdens = Figure()
+        canvasBdens = FigureCanvas(self.figBdens)
+
+# Cell canvas in dist_right2_widget
+
+        self.figCell = Figure()
+        canvasCell = FigureCanvas(self.figCell)
+
+        for wid in lbl, thetaCB, volCB, energy_widget, log_widget:
+            dist_right1_layout.addWidget(wid)
+            wid.setFixedHeight(widgetHeight)
+        dist_right2_layout.addWidget(canvasBdens)
+        dist_right2_layout.addWidget(canvasCell)
+        canvasBdens.setFixedHeight(400)
+        canvasCell.setFixedHeight(600)
+
+#-----------------
 # Trapped particle tab
         qtrap = QWidget()
         trap_layout = QHBoxLayout()
@@ -122,31 +180,45 @@ class FBM(QMainWindow):
         trap_left_widget.setLayout(trap_left_layout)
         trap_right_widget.setLayout(trap_right_layout)
 
-        figtrap1 = Figure()
-        self.trapCanvas1 = FigureCanvas(figtrap1)
-        self.axtrap1 = figtrap1.add_subplot(111, aspect='equal')
-        trap_left_layout.addWidget(self.trapCanvas1)
+        self.figTrap1 = Figure()
+        trapCanvas1 = FigureCanvas(self.figTrap1)
+        axtrap1 = self.figTrap1.add_subplot(111, aspect='equal')
+        trap_left_layout.addWidget(trapCanvas1)
         trap_layout.addWidget(trap_left_widget)
         trap_layout.addWidget(trap_right_widget)
 
+#-----------------
 # Neutron tab
         qneut = QWidget()
         neut_layout = QHBoxLayout()
         qneut.setLayout(neut_layout)
-        qtabs.addTab(qneut, 'Neut. Frac')
+        qtabs.addTab(qneut, 'Neutrons')
+        neut_right_widget = QWidget()
+        neut_left_widget  = QWidget()
+        neut_left_layout  = QHBoxLayout()
+        neut_right_layout = QVBoxLayout()
+        neut_left_widget.setLayout(neut_left_layout)
+        neut_right_widget.setLayout(neut_right_layout)
 
-        figneut = Figure()
-        self.neutCanvas = FigureCanvas(figneut)
-        self.axneut1 = figneut.add_subplot(121, aspect='equal')
-        self.axneut2 = figneut.add_subplot(122, aspect='equal')
-        neut_layout.addWidget(self.neutCanvas)
+        self.figNeut1 = Figure()
+        self.figNeut2 = Figure()
+        neutCanvas1 = FigureCanvas(self.figNeut1)
+        neutCanvas2 = FigureCanvas(self.figNeut2)
+        axtrap1 = self.figNeut1.add_subplot(111, aspect='equal')
+        axtrap2 = self.figNeut2.add_subplot(111, aspect='equal')
+        neut_left_layout.addWidget(neutCanvas1)
+        neut_right_layout.addWidget(neutCanvas2)
+        neut_layout.addWidget(neut_left_widget)
+        neut_layout.addWidget(neut_right_widget)
 
+#-----------------
 # Fast ions birth location
         qbirth = QWidget()
         birth_layout = QGridLayout()
         qbirth.setLayout(birth_layout)
         qtabs.addTab(qbirth, 'Birth profile')
 
+#-----------------
 # NBI losses
         qloss = QWidget()
         loss_layout = QGridLayout()
@@ -180,7 +252,7 @@ class FBM(QMainWindow):
         self.setStyleSheet("QLabel { width: 4 }")
         self.setStyleSheet("QLineEdit { width: 4 }")
         self.setGeometry(10, 10, xwin, ywin)
-        self.setWindowTitle('DPSD')
+        self.setWindowTitle('FBM viewer')
         self.show()
 
 
@@ -190,21 +262,20 @@ class FBM(QMainWindow):
         ffbm =  QFileDialog.getOpenFileName(self, 'Open file', \
             '%s/' %dir_init, "AC files (*.DATA*)")
         if qt5:
-            f_ac = ffbm[0]
+            self.f_ac = ffbm[0]
         else:
-            f_ac = str(ffbm)
-        print(f_ac)
-        self.read_all(f_ac)
+            self.f_ac = str(ffbm)
+        self.read_all()
 
 
-    def read_all(self, f_ac):
+    def read_all(self):
 
-        fbmdir, fbmfile  = os.path.split(f_ac)
+        fbmdir, fbmfile  = os.path.split(self.f_ac)
 
         tmp = fbmfile.split('.')
         runid = tmp[0]
         t_id = tmp[1][4:]
-        self.fbmr = read_ac.READ_FBM(f_ac)
+        self.fbmr = read_ac.READ_FBM(self.f_ac)
 
 # Read FBM 
 
@@ -242,22 +313,49 @@ class FBM(QMainWindow):
         np.linspace(self.fbmr.r2d.min(), self.fbmr.r2d.max(), 100),
         np.linspace(self.fbmr.z2d.min(), self.fbmr.z2d.max(), 100))
 
+# Bdens
+        self.figBdens.clf()
+        axBdens = self.figBdens.add_subplot(111)
+        axBdens.plot(self.fbmr.rho_grid, self.fbmr.bdens[spc_lbl], 'r-', label='From FBM', linewidth=2.5)
+        axBdens.plot(self.cv['X'], self.cv[bdens_d[spc_lbl]], 'g-', label='From CDF', linewidth=2.5)
+        axBdens.set_xlabel(r'$\rho_{tor}$',fontsize=fsize)
+        axBdens.set_ylabel(r'%s [1/cm$^3$]' %bdens_d[spc_lbl],fontsize=fsize)
+        axBdens.set_xlim([0, 1])
+        axBdens.legend()
+        self.figBdens.canvas.draw()
+
 # FBM integrated over E, mu
         f_in = self.fbmr.int_en_pit[spc_lbl]
-        self.contourPlot(self.axdist1, r_grid, z_grid, f_in)
+        self.contourPlotRZ(self.figDist, r_grid, z_grid, f_in, title=r'2D distribution, $\int\int$ dE dp.a.', label='dist')
+        self.figDist.canvas.mpl_connect('button_press_event', self.my_call)
 
 # Trapped particle fraction
         f_in = self.fbmr.int_en_pit_frac_trap[spc_lbl]
-        self.contourPlot(self.axtrap1, r_grid, z_grid, f_in)
+        self.contourPlotRZ(self.figTrap1, r_grid, z_grid, f_in, title='Trapped fast ion fraction')
 
 # Neutron
         f_in = btneut
-        self.contourPlot(self.axneut1, r_grid, z_grid, f_in)
+        self.contourPlotRZ(self.figNeut1, r_grid, z_grid, f_in, title='Beam-target neutrons')
         f_in = bbneut
-        self.contourPlot(self.axneut2, r_grid, z_grid, f_in)
+        self.contourPlotRZ(self.figNeut2, r_grid, z_grid, f_in, title='Beam-beam neutrons')
 
 
-    def contourPlot(self, ax, r_grid, z_grid, f_in):
+    def my_call(self, event):
+
+        if event.button in (2,3):
+            dist2 = (self.fbmr.r2d - event.xdata)**2 + (self.fbmr.z2d - event.ydata)**2
+            jcell = np.argmin(dist2)
+            self.plot_fbm_cell(jcell)
+
+
+    def contourPlotRZ(self, fig, r_grid, z_grid, f_in, title='', label=None):
+
+        fbmfile  = self.f_ac.split('/')[-1]
+        runid    = fbmfile[:8]
+        title += ', Run %s, t =%6.3f s' %(runid, self.fbmr.time)
+        fig.clf()
+        ax = fig.add_subplot(111, aspect='equal')
+        fig.text(0.5, 0.95, title, ha='center')
         if 'gc_d' in globals():
             for gc in gc_d.values():
                 ax.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
@@ -266,11 +364,97 @@ class FBM(QMainWindow):
         for jbar, myr in enumerate(self.fbmr.rbar):
             ax.plot(myr, self.fbmr.zbar[jbar], 'r-')
         f_grid = griddata((self.fbmr.r2d, self.fbmr.z2d), f_in, (r_grid, z_grid), method='cubic')
-        ax.contourf(r_grid, z_grid, f_grid, levels=50, cmap='viridis')
+        plot2d = ax.contourf(r_grid, z_grid, f_grid, levels=50, cmap='viridis')
+        fig.colorbar(plot2d, aspect=20)
         ax.set_xlabel('R [cm]')
         ax.set_ylabel('Z [cm]')
-        canvas = ax.figure.canvas
+        if label == 'dist':
+            self.cell_mark, = ax.plot([], [], 'ro')
+# Draw limiter, set plot boundaries
+        xext =  (self.fbmr.rlim_pts.min() + self.fbmr.rlim_pts.max())*0.025
+        yext = (-self.fbmr.ylim_pts.min() + self.fbmr.ylim_pts.max())*0.025
+        xpol_lim=np.array ([self.fbmr.rlim_pts.min() - xext, self.fbmr.rlim_pts.max() + xext])
+        ypol_lim=np.array ([self.fbmr.ylim_pts.min() - yext, self.fbmr.ylim_pts.max() + yext])
+        xpol_lim=np.round(xpol_lim).astype(int)
+        ypol_lim=np.round(ypol_lim).astype(int)
+        rlin=self.fbmr.rlim_pts
+        zlin=self.fbmr.ylim_pts
+        ax.set_xlim(xpol_lim)
+        ax.set_ylim(ypol_lim)
+        ax.plot(rlin, zlin, 'g-', linewidth=2.5)
+        canvas = fig.canvas
         canvas.draw()
+
+
+    def plot_fbm_cell(self, jcell, spc_lbl='D_NBI'):
+
+        self.figCell.clf()
+        ax = self.figCell.add_subplot(111)
+        ax.set_ylim((-1, 1))
+        ax.set_xlabel('Energy [keV]', fontsize=fsize)
+        ax.set_ylabel('Pitch angle' , fontsize=fsize)
+
+        thint    = False
+        volint   = False
+        logscale = True # self.butt_d[spc_lbl]['log_scale'].get()
+
+        jrho = np.where(self.fbmr.rho_grid == self.fbmr.x2d[jcell])[0][0]
+
+        if volint:
+            self.cell_mark.set_data(self.fbmr.r2d, self.fbmr.z2d)
+            tit_lbl = 'Volume averaged, t=%6.3f' %self.fbmr.time
+            zarr_lin = self.fbmr.dens_vol[spc_lbl]
+        else:
+            if thint:
+                ind = np.where(self.fbmr.x2d == self.fbmr.x2d[jcell])
+                self.cell_mark.set_data(self.fbmr.r2d[ind], self.fbmr.z2d[ind])
+                tit_lbl = r'$\rho_{tor}$' + \
+                          r' = %8.4f, $\theta$ averaged, t=%6.3f' %(self.fbmr.x2d[jcell], self.fbmr.time)
+                zarr_lin = self.fbmr.dens_zone[spc_lbl][jrho]
+            else:
+                self.cell_mark.set_data([self.fbmr.r2d[jcell]], [self.fbmr.z2d[jcell]])
+                tit_lbl = r'$\rho_{tor} = $ %8.4f $\theta = $%8.4f deg, t=%6.3f s' \
+                          %(self.fbmr.x2d[jcell], np.degrees(self.fbmr.th2d[jcell]), self.fbmr.time)
+                zarr_lin = self.fbmr.fdist[spc_lbl][jcell]
+        self.figDist.canvas.draw()
+        self.figCell.canvas.draw() # Update red marker
+
+        zmax_lin = np.max(zarr_lin[~np.isnan(zarr_lin)])
+        zmin_lin = 1e-8*zmax_lin
+        flog_max = np.log10(zmax_lin)
+        flog_min = np.log10(zmin_lin)
+#        flog_min = float(self.butt_d[spc_lbl]['fmin'].get())
+#        flog_max = float(self.butt_d[spc_lbl]['fmax'].get())
+        indzero = np.where(zarr_lin <= zmin_lin)
+        zarr_lin[indzero] = np.nan
+        zarr_log = np.log10(zarr_lin)
+        n_levels = 15
+        if logscale:
+            zmin = flog_min
+            zmax = flog_max
+            zarr = zarr_log
+        else:
+            zmin = 0
+            zmax = zmax_lin
+            zarr = zarr_lin
+
+        bounds = np.linspace(zmin, zmax, n_levels)
+
+#        Emax = float(self.butt_d[spc_lbl]['Emax'].get())
+        Emax = 100.
+        ax.set_xlim((0, Emax))
+        ax.set_title(tit_lbl, fontsize=fsize)
+
+        ctr = ax.contourf(1e-3*self.fbmr.e_d[spc_lbl], self.fbmr.a_d[spc_lbl], zarr, bounds)
+        norm = mpl.colors.Normalize(vmin=zmin, vmax=zmax)
+#        cb_ax = self.figCell.add_axes([0.86, 0.05, 0.05, 0.91])
+#        mpl.colorbar.ColorbarBase(cb_ax,norm=norm,boundaries=bounds,ticks=bounds)
+        ax.plot([0, Emax], [0, 0], 'k-')
+        if not volint and not thint:
+            ax.plot([0, Emax], [ self.fbmr.trap_pit[spc_lbl][jcell],  self.fbmr.trap_pit[spc_lbl][jcell]], 'g-')
+            ax.plot([0, Emax], [-self.fbmr.trap_pit[spc_lbl][jcell], -self.fbmr.trap_pit[spc_lbl][jcell]], 'g-')
+
+        ax.figure.canvas.draw()
 
 
 if __name__ == '__main__':
