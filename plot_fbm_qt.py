@@ -24,7 +24,7 @@ try:
 except:
     pass
 import read_ac, plot_birth, config, plot_lost
-from plots import contourPlotRZ, plotTrapped, clear_layout
+from plots import contourPlotRZ, plotTrapped, clear_layout, plotLost
 
 
 os.environ['BROWSER'] = '/usr/bin/firefox'
@@ -42,6 +42,7 @@ fbm_dir = os.path.dirname(os.path.realpath(__file__))
 
 bdens_d = {'D_NBI': 'BDENS', 'H_NBI': 'BDENS', 'HE3_FUS': 'FDENS_3', \
            'H_FUS': 'FDENS_P', 'T_FUS': 'FDENS_T', 'HE4_FUS': 'FDENS_4'}
+rblist = ['Single cell', 'Theta averaged', 'Volume averaged']
 
 lframe_wid = 670
 rframe_wid = 800
@@ -234,6 +235,9 @@ class FBM(QMainWindow):
         f_in = bbneut
         contourPlotRZ(self.fbmr, self.figNeut2, self.r_grid, self.z_grid, f_in, title='Beam-beam neutrons')
 
+# Lost particles and power
+        plotLost(self.fbmr, self.r_grid, self.z_grid, self.lossLayout)
+
 
     def my_call(self, event):
 
@@ -284,7 +288,7 @@ class FBM(QMainWindow):
             dist_right_layout.addWidget(dist_right3_widget)
 
 # Buttons in dist_right1_widget
-            widgetHeight = 25
+            widgetHeight = 38
             textWidth = 100
             dist_right1_layout = QVBoxLayout()
             dist_right2_layout = QVBoxLayout()
@@ -293,16 +297,22 @@ class FBM(QMainWindow):
             dist_right2_widget.setLayout(dist_right2_layout)
             dist_right3_widget.setLayout(dist_right3_layout)
 
-            dist_right1_widget.setFixedHeight(5*widgetHeight + 30)
+            dist_right1_widget.setFixedHeight(4*widgetHeight + 5)
             dist_right2_widget.setFixedHeight(400)
             dist_right2_widget.setFixedHeight(500)
             mouseLbl = QLabel('Right-mouse click on a cell for local FBM plot')
+            buttons_widget = QWidget()
+            buttons_layout = QHBoxLayout()
+            buttons_widget.setLayout(buttons_layout)
             self.butt_d = {}
-            self.butt_d['theta'] = QCheckBox('Theta averaged FBM')
-            self.butt_d['vol']   = QCheckBox('Voume averaged FBM')
-            self.butt_d['theta'].setChecked(False)
-            self.butt_d['vol'].setChecked(False)
-
+            self.butt_d['integral'] = QButtonGroup()
+            for jcol, val in enumerate(rblist):
+                but = QRadioButton(val)
+                if jcol == 0:
+                    but.setChecked(True)
+                self.butt_d['integral'].addButton(but)
+                self.butt_d['integral'].setId(but, jcol)
+                buttons_layout.addWidget(but)
             energy_widget = QWidget()
             energy_layout = QHBoxLayout()
             Elbl = QLabel('Emax [keV]')
@@ -365,12 +375,9 @@ class FBM(QMainWindow):
             canvasCell = FigureCanvas(self.figCell)
             toolbar = NavigationToolbar(canvasCell)
 
-            for wid in mouseLbl, self.butt_d['theta'], self.butt_d['vol']:
+            for wid in mouseLbl, buttons_widget, energy_widget, log_widget:
                 dist_right1_layout.addWidget(wid)
                 wid.setFixedHeight(widgetHeight)
-            for wid in energy_widget, log_widget:
-                dist_right1_layout.addWidget(wid)
-                wid.setFixedHeight(widgetHeight + 15)
             dist_right2_layout.addWidget(canvasBdens)
             dist_right3_layout.addWidget(canvasCell)
             dist_right3_layout.addWidget(toolbar)
@@ -390,27 +397,25 @@ class FBM(QMainWindow):
         ax.set_xlabel('Energy [keV]', fontsize=fsize)
         ax.set_ylabel('Pitch angle' , fontsize=fsize)
 
-        thint    = self.butt_d['theta'].isChecked()
-        volint   = self.butt_d['vol'].isChecked()
-        logscale = self.butt_d['logScale'].isChecked()
+        bid = self.butt_d['integral'].checkedId()
+        integrFlag = rblist[bid]
 
-        if volint:
+        if integrFlag == 'Volume averaged':
             self.cell_mark.set_data(self.fbmr.r2d, self.fbmr.z2d)
             tit_lbl = 'Volume averaged, t=%6.3f' %self.fbmr.time
             zarr_lin = self.fbmr.dens_vol[spc_lbl]
+        elif integrFlag == 'Theta averaged':
+            jrho = np.where(self.fbmr.rho_grid == self.fbmr.x2d[jcell])[0][0]
+            ind = np.where(self.fbmr.x2d == self.fbmr.x2d[jcell])
+            self.cell_mark.set_data(self.fbmr.r2d[ind], self.fbmr.z2d[ind])
+            tit_lbl = r'$\rho_{tor}$' + \
+                      r' = %8.4f, $\theta$ averaged, t=%6.3f' %(self.fbmr.x2d[jcell], self.fbmr.time)
+            zarr_lin = self.fbmr.dens_zone[spc_lbl][jrho]
         else:
-            if thint:
-                jrho = np.where(self.fbmr.rho_grid == self.fbmr.x2d[jcell])[0][0]
-                ind = np.where(self.fbmr.x2d == self.fbmr.x2d[jcell])
-                self.cell_mark.set_data(self.fbmr.r2d[ind], self.fbmr.z2d[ind])
-                tit_lbl = r'$\rho_{tor}$' + \
-                          r' = %8.4f, $\theta$ averaged, t=%6.3f' %(self.fbmr.x2d[jcell], self.fbmr.time)
-                zarr_lin = self.fbmr.dens_zone[spc_lbl][jrho]
-            else:
-                self.cell_mark.set_data([self.fbmr.r2d[jcell]], [self.fbmr.z2d[jcell]])
-                tit_lbl = r'$\rho_{tor} = $ %8.4f $\theta = $%8.4f deg, t=%6.3f s' \
-                          %(self.fbmr.x2d[jcell], np.degrees(self.fbmr.th2d[jcell]), self.fbmr.time)
-                zarr_lin = self.fbmr.fdist[spc_lbl][jcell]
+            self.cell_mark.set_data([self.fbmr.r2d[jcell]], [self.fbmr.z2d[jcell]])
+            tit_lbl = r'$\rho_{tor} = $ %8.4f $\theta = $%8.4f deg, t=%6.3f s' \
+                %(self.fbmr.x2d[jcell], np.degrees(self.fbmr.th2d[jcell]), self.fbmr.time)
+            zarr_lin = self.fbmr.fdist[spc_lbl][jcell]
         self.figDist[spc_lbl].canvas.draw() # update canvas for the red marker
         self.figCell.canvas.draw() # Update red marker
 
@@ -420,6 +425,7 @@ class FBM(QMainWindow):
         flog_min = np.log10(zmin_lin)
         flog_min = self.butt_d['logMin'].value()
         flog_max = self.butt_d['logMax'].value()
+        logscale = self.butt_d['logScale'].isChecked()
         indzero = np.where(zarr_lin <= zmin_lin)
         zarr_lin[indzero] = np.nan
         zarr_log = np.log10(zarr_lin)
@@ -444,7 +450,7 @@ class FBM(QMainWindow):
         cb_ax = self.figCell.add_axes([0.89, 0.15, 0.03, 0.84]) #l, b, w, h
         mpl.colorbar.ColorbarBase(cb_ax, norm=norm, boundaries=bounds, ticks=bounds)
         ax.plot([0, Emax], [0, 0], 'k-')
-        if not volint and not thint:
+        if integrFlag == 'Single cell':
             ax.plot([0, Emax], [ self.fbmr.trap_pit[spc_lbl][jcell],  self.fbmr.trap_pit[spc_lbl][jcell]], 'g-')
             ax.plot([0, Emax], [-self.fbmr.trap_pit[spc_lbl][jcell], -self.fbmr.trap_pit[spc_lbl][jcell]], 'g-')
 

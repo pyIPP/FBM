@@ -33,7 +33,6 @@ def get_lost(runid, fbm, topframe=None):
 # Get 
     nr = 141
     nz = 101
-    ntheta = 101
     Rmaj = fbm.rsurf[0, 0]
     Rmin = fbm.rlim_pts.min()
     Rmax = fbm.rlim_pts.max()
@@ -42,9 +41,6 @@ def get_lost(runid, fbm, topframe=None):
     R_grid = np.linspace(Rmin, Rmax, nr)
     z_grid = np.linspace(zmin, zmax, nz)
 
-    phi_tor = np.linspace(0, 2*np.pi, ntheta)
-    cosp = np.cos(phi_tor)
-    sinp = np.sin(phi_tor)
     Rlbl = 'R [cm]'
     zlbl = 'Z [cm]'
     fsize = 12
@@ -55,15 +51,15 @@ def get_lost(runid, fbm, topframe=None):
 
     xgrid, ygrid = np.meshgrid(R_grid, z_grid, indexing='ij')
 
-    tbm1=fbm.ta
-    tbm2=fbm.tb
+    tbm1 = fbm.ta
+    tbm2 = fbm.tb
 
     print('PLOT_LOST')
     src_arr = fbm.species
     
     print('Sources: ', src_arr)
 
-    comp_lbl = {1: 'P', 2: 'NP', 3: 'Total'}
+    comp_lbl = ['P', 'NP', 'Total']
     n_src  = len(src_arr)
 # One tab for each source
 
@@ -138,7 +134,7 @@ def get_lost(runid, fbm, topframe=None):
             
         for jcol, jcomp in enumerate(comp_arr):
             ind = (j_comp == jcomp)
-            axpol.plot(Rj[ind]  , zj[ind]  , '%so' %colors[jcol], label=comp_lbl[jcomp],markersize=sizes[jcol])
+            axpol.plot(Rj[ind]  , zj[ind]  , '%so' %colors[jcol], label=comp_lbl[jcol], markersize=sizes[jcol])
 
         axpol.legend(loc=2, numpoints=1, prop={'size': 10})
 
