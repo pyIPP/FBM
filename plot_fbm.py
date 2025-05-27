@@ -180,7 +180,7 @@ class FBM(QMainWindow):
     def load_fbm(self):
 
         dir_init = config.tr_clientDir
-        if os.getenv('USER') == 'git':
+        if os.getenv('USER') == 'git': # For Giovanni Tardini's quick testing
             dir_init += '/29795/A05'
         ffbm =  QFileDialog.getOpenFileName(self, 'Open file', dir_init, "AC files (*.DATA*)")
         f_ac = ffbm[0]
