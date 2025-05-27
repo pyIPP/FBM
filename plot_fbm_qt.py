@@ -23,8 +23,8 @@ try:
     ypol_lim = (-125, 125)
 except:
     pass
-import read_ac, plot_birth, config, plot_lost
-from plots import contourPlotRZ, plotTrapped, clear_layout, plotLost
+import read_ac, config
+from plots import contourPlotRZ, plotTrapped, clear_layout, plotLost, plotBirth
 
 
 os.environ['BROWSER'] = '/usr/bin/firefox'
@@ -133,8 +133,8 @@ class FBM(QMainWindow):
 #-----------------
 # Fast ions birth location
         qbirth = QWidget()
-        birth_layout = QGridLayout()
-        qbirth.setLayout(birth_layout)
+        self.birthLayout = QGridLayout()
+        qbirth.setLayout(self.birthLayout)
         qtabs.addTab(qbirth, 'Birth profile')
 
 #-----------------
@@ -219,7 +219,7 @@ class FBM(QMainWindow):
 #--------
   
         nR = 100
-        nZ = 100
+        nZ = 130
         self.r_grid, self.z_grid = np.meshgrid(
         np.linspace(self.fbmr.r2d.min(), self.fbmr.r2d.max(), nR),
         np.linspace(self.fbmr.z2d.min(), self.fbmr.z2d.max(), nZ))
@@ -237,6 +237,9 @@ class FBM(QMainWindow):
 
 # Lost particles and power
         plotLost(self.fbmr, self.r_grid, self.z_grid, self.lossLayout)
+
+# Particles birth
+        plotBirth(self.fbmr, self.r_grid, self.z_grid, self.birthLayout)
 
 
     def my_call(self, event):
