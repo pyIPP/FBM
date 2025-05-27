@@ -98,6 +98,46 @@ def plotTrapped(fbm, r_grid, z_grid, trapLayout):
         tabLayout.addWidget(toolbar)
 
 
+def plotNeutrons(fbm, cv, r_grid, z_grid, neutLayout):
+    clear_layout(neutLayout)
+    specTabs = QTabWidget()
+    specTabs.setStyleSheet("QTabBar::tab { width: 120 }")
+    neutLayout.addWidget(specTabs)
+    
+    neut_right_widget = QWidget()
+    neut_left_widget  = QWidget()
+    neut_left_layout  = QVBoxLayout()
+    neut_right_layout = QVBoxLayout()
+    neut_left_widget.setLayout(neut_left_layout)
+    neut_right_widget.setLayout(neut_right_layout)
+
+    figNeut1 = Figure()
+    figNeut2 = Figure()
+    neutCanvas1 = FigureCanvas(figNeut1)
+    neutCanvas2 = FigureCanvas(figNeut2)
+    axneut1 = figNeut1.add_subplot(111, aspect='equal')
+    axneut2 = figNeut2.add_subplot(111, aspect='equal')
+    toolbar1 = NavigationToolbar(neutCanvas1)
+    toolbar2 = NavigationToolbar(neutCanvas2)
+    neut_left_layout.addWidget(neutCanvas1)
+    neut_left_layout.addWidget(toolbar1)
+    neut_right_layout.addWidget(neutCanvas2)
+    neut_right_layout.addWidget(toolbar2)
+    neutLayout.addWidget(neut_left_widget)
+    neutLayout.addWidget(neut_right_widget)
+    btneut = cv['BTNT2_DD']
+    bbneut = cv['BBNT2_DD']
+    if (np.max(btneut) == 0) and (np.max(bbneut) == 0):
+        logger.error('Zero neutrons')
+        return
+    btneut[btneut == 0] = np.nan # for plotting
+    bbneut[bbneut == 0] = np.nan # for plotting
+    f_in = btneut
+    contourPlotRZ(fbm, figNeut1, r_grid, z_grid, f_in, title='Beam-target neutrons')
+    f_in = bbneut
+    contourPlotRZ(fbm, figNeut2, r_grid, z_grid, f_in, title='Beam-beam neutrons')
+
+
 def plotLost(fbm, r_grid, z_grid, lossLayout):
 
     clear_layout(lossLayout)

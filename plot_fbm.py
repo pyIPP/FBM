@@ -22,7 +22,7 @@ try:
 except:
     pass
 import read_ac, config
-from plots import contourPlotRZ, plotTrapped, clear_layout, plotLost, plotBirth
+from plots import contourPlotRZ, plotTrapped, clear_layout, plotLost, plotBirth, plotNeutrons
 
 fmt = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s: %(message)s', '%H:%M:%S')
 logger = logging.getLogger('FBM')
@@ -108,30 +108,9 @@ class FBM(QMainWindow):
 #-----------------
 # Neutron tab
         qneut = QWidget()
-        neutLayout = QHBoxLayout()
-        qneut.setLayout(neutLayout)
+        self.neutLayout = QHBoxLayout()
+        qneut.setLayout(self.neutLayout)
         qtabs.addTab(qneut, 'Neutrons')
-        neut_right_widget = QWidget()
-        neut_left_widget  = QWidget()
-        neut_left_layout  = QVBoxLayout()
-        neut_right_layout = QVBoxLayout()
-        neut_left_widget.setLayout(neut_left_layout)
-        neut_right_widget.setLayout(neut_right_layout)
-
-        self.figNeut1 = Figure()
-        self.figNeut2 = Figure()
-        neutCanvas1 = FigureCanvas(self.figNeut1)
-        neutCanvas2 = FigureCanvas(self.figNeut2)
-        axneut1 = self.figNeut1.add_subplot(111, aspect='equal')
-        axneut2 = self.figNeut2.add_subplot(111, aspect='equal')
-        toolbar1 = NavigationToolbar(neutCanvas1)
-        toolbar2 = NavigationToolbar(neutCanvas2)
-        neut_left_layout.addWidget(neutCanvas1)
-        neut_left_layout.addWidget(toolbar1)
-        neut_right_layout.addWidget(neutCanvas2)
-        neut_right_layout.addWidget(toolbar2)
-        neutLayout.addWidget(neut_left_widget)
-        neutLayout.addWidget(neut_right_widget)
 
 #-----------------
 # Fast ions birth location
@@ -210,14 +189,6 @@ class FBM(QMainWindow):
             if lbl in cv_all:
                 self.cv[lbl] = cv_all[lbl][jtclose]
 
-        btneut = self.cv['BTNT2_DD']
-        bbneut = self.cv['BBNT2_DD']
-        if (np.max(btneut) == 0) and (np.max(bbneut) == 0):
-            logger.error('Zero neutrons')
-            return
-        btneut[btneut == 0] = np.nan # for plotting
-        bbneut[bbneut == 0] = np.nan # for plotting
-
 #--------
 # Plots
 #--------
@@ -234,12 +205,7 @@ class FBM(QMainWindow):
         plotTrapped(self.fbmr, self.r_grid, self.z_grid, self.trapLayout)
 
 # Neutron
-        f_in = btneut
-        contourPlotRZ(self.fbmr, self.figNeut1, self.r_grid, self.z_grid, f_in, title='Beam-target neutrons')
-        f_in = bbneut
-        contourPlotRZ(self.fbmr, self.figNeut2, self.r_grid, self.z_grid, f_in, title='Beam-beam neutrons')
-        self.figNeut1.canvas.draw()
-        self.figNeut2.canvas.draw()
+        plotNeutrons(self.fbmr, self.cv, self.r_grid, self.z_grid, self.neutLayout)
 
 # Lost particles and power
         plotLost(self.fbmr, self.r_grid, self.z_grid, self.lossLayout)
