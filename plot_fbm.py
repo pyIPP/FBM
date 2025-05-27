@@ -1,37 +1,19 @@
 #!/usr/bin/env python
 
-import sys, os
+__author__  = 'Giovanni Tardini (Tel. +49 89 3299-1898)'
+__version__ = '0.0.1'
+__date__    = '29.05.2025'
+
+import os, sys, logging, webbrowser
 from scipy.io import netcdf_file
-try:
-    import Tkinter as tk
-    import ttk
-    import tkFileDialog as tkfd
-    import tkMessageBox as tkmb
-except:
-    import tkinter as tk
-    from tkinter import ttk
-    from tkinter import filedialog as tkfd
-    from tkinter import messagebox as tkmb
-
-import read_ac, plot_birth, config, plot_lost
-import tkhyper
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-try:
-    from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk as nt2tk
-except:
-    from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg as nt2tk
-
-from scipy.interpolate import griddata
-from matplotlib.figure import Figure
-import matplotlib as mpl
 import numpy as np
+import matplotlib as mpl
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-bdens_d = {'D_NBI': 'BDENS', 'H_NBI': 'BDENS', 'HE3_FUS': 'FDENS_3', \
-           'H_FUS': 'FDENS_P', 'T_FUS': 'FDENS_T', 'HE4_FUS': 'FDENS_4'}
-
-lframe_wid = 630
-rframe_wid = 750
-fsize = 12
+from PyQt5.QtWidgets import QMainWindow, QWidget, QApplication, QGridLayout, QMenu, QAction, QLabel, QPushButton, QLineEdit, QCheckBox, QSpinBox, QDoubleSpinBox, QFileDialog, QRadioButton, QButtonGroup, QTabWidget, QVBoxLayout, QHBoxLayout
+from PyQt5.QtCore import Qt, QRect, QLocale
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 try:
     import aug_sfutils as sf
@@ -41,318 +23,181 @@ try:
     ypol_lim = (-125, 125)
 except:
     pass
+import read_ac, config
+from plots import contourPlotRZ, plotTrapped, clear_layout, plotLost, plotBirth
 
-class FBM:
+
+os.environ['BROWSER'] = '/usr/bin/firefox'
+
+usLocale = QLocale('us')
+
+fmt = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s: %(message)s', '%H:%M:%S')
+hnd = logging.StreamHandler()
+hnd.setFormatter(fmt)
+logger = logging.getLogger('FBM_GUI')
+logger.addHandler(hnd)
+logger.setLevel(logging.INFO)
+
+fbm_dir = os.path.dirname(os.path.realpath(__file__))
+
+bdens_d = {'D_NBI': 'BDENS', 'H_NBI': 'BDENS', 'HE3_FUS': 'FDENS_3', \
+           'H_FUS': 'FDENS_P', 'T_FUS': 'FDENS_T', 'HE4_FUS': 'FDENS_4'}
+rblist = ['Single cell', 'Theta averaged', 'Volume averaged']
+
+lframe_wid = 670
+rframe_wid = 800
+fsize = 12
+
+
+def about():
+    webbrowser.open('http://www.aug.ipp.mpg.de/aug/manuals/transp/fbm/plot_fbm.html')
+
+
+class FBM(QMainWindow):
 
 
     def __init__(self):
 
-# Widget frame
+        if sys.version_info[0] == 3:
+            super().__init__()
+        else:
+            super(QMainWindow, self).__init__()
 
-        viewer = tk.Tk()
-        try:
-            viewer.tk.call("tk", "scaling", 1.0)
-            viewer.tk_setPalette(background='white', foreground='black')
-        except Exception as e:
-            print("Could not set palette:", e)
-        xmax = viewer.winfo_screenwidth()
-        ymax = viewer.winfo_screenheight()
-        width  = min(lframe_wid + rframe_wid, int(0.95*xmax))
-        height = min(960, int(0.88*ymax)) 
-        viewer.title('FBM viewer')
-        viewer.geometry('%dx%d' %(width, height))
-        viewer.option_add("*Dialog.msg.wrapLength", "10i")
-        viewer.option_add("*Font", "Helvetica")
+        self.setLocale(usLocale)
+
+        xwin  = lframe_wid + rframe_wid
+        yhead = 44
+        ywin  = 1150
+        qhead  = QWidget(self)
+        qtabs  = QTabWidget(self)
+        qhead.setGeometry(QRect(0,     0, xwin, yhead))
+        qtabs.setGeometry(QRect(0, yhead, xwin, ywin-yhead))
+        qtabs.setStyleSheet("QTabBar::tab { width: 120 }")
+        header_grid = QGridLayout(qhead) 
+
+#------#
+# Tabs #
+#------#
+
+#-----------------
+# Distribution TAB
+        qdist = QWidget()
+        self.distLayout = QHBoxLayout()
+        qdist.setLayout(self.distLayout)
+        qtabs.addTab(qdist, '2D dist')
+
+# Initial plot: vessel components
+        figDist = Figure()
+        canvasDist = FigureCanvas(figDist)
+        axDist = figDist.add_subplot(111, aspect='equal')
+        axDist.set_xlabel('R [cm]')
+        axDist.set_ylabel('Z [cm]')
+# Plot vessel even before reading FBM file
+        if 'gc_d' in globals():
+            for gc in gc_d.values():
+                axDist.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
+        canvasDist.draw()
+        self.distLayout.addWidget(canvasDist)
+
+#-----------------
+# Trapped particle tab
+        qtrap = QWidget()
+        self.trapLayout = QHBoxLayout()
+        qtrap.setLayout(self.trapLayout)
+        qtabs.addTab(qtrap, 'Trap. Frac')
+
+#-----------------
+# Neutron tab
+        qneut = QWidget()
+        neutLayout = QHBoxLayout()
+        qneut.setLayout(neutLayout)
+        qtabs.addTab(qneut, 'Neutrons')
+        neut_right_widget = QWidget()
+        neut_left_widget  = QWidget()
+        neut_left_layout  = QHBoxLayout()
+        neut_right_layout = QVBoxLayout()
+        neut_left_widget.setLayout(neut_left_layout)
+        neut_right_widget.setLayout(neut_right_layout)
+
+        self.figNeut1 = Figure()
+        self.figNeut2 = Figure()
+        neutCanvas1 = FigureCanvas(self.figNeut1)
+        neutCanvas2 = FigureCanvas(self.figNeut2)
+        axneut1 = self.figNeut1.add_subplot(111, aspect='equal')
+        axneut2 = self.figNeut2.add_subplot(111, aspect='equal')
+        neut_left_layout.addWidget(neutCanvas1)
+        neut_right_layout.addWidget(neutCanvas2)
+        neutLayout.addWidget(neut_left_widget)
+        neutLayout.addWidget(neut_right_widget)
+
+#-----------------
+# Fast ions birth location
+        qbirth = QWidget()
+        self.birthLayout = QGridLayout()
+        qbirth.setLayout(self.birthLayout)
+        qtabs.addTab(qbirth, 'Birth profile')
+
+#-----------------
+# NBI losses
+        qloss = QWidget()
+        self.lossLayout = QGridLayout()
+        qloss.setLayout(self.lossLayout)
+        qtabs.addTab(qloss, 'Losses')
+
+#--------
 # Menubar
+#--------
 
-        menubar = tk.Menu(viewer)
-        filemenu = tk.Menu(menubar, tearoff=0)
-        filemenu.add_command(label="Read FBM..." , command=self.load_fbm)
-        filemenu.add_separator()
-        filemenu.add_command(label="Exit", command=sys.exit)
-        helpmenu = tk.Menu(menubar, tearoff=0)
-        helpmenu.add_command(label="About", command=self.about)
-        menubar.add_cascade(label="File", menu=filemenu)
-        menubar.add_cascade(label="Help", menu=helpmenu)
+        menubar = self.menuBar()
+        fileMenu = QMenu('&File', self)
+        helpMenu = QMenu('&Help', self)
+        menubar.addMenu(fileMenu)
+        menubar.addMenu(helpMenu)
 
-        viewer.config(menu = menubar)
+        runAction  = QAction('&Read FBM', fileMenu)
+        exitAction = QAction('&Exit'    , fileMenu)
+        runAction.triggered.connect(self.load_fbm)
+        exitAction.triggered.connect(sys.exit)
+        fileMenu.addAction(runAction)
+        fileMenu.addSeparator()
+        fileMenu.addAction(exitAction)
 
-        nb = ttk.Notebook(viewer, name='nb')
-        nb.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        aboutAction = QAction('&Web docu', helpMenu)
+        aboutAction.triggered.connect(about)
+        helpMenu.addAction(aboutAction)
 
-        self.fbmframe   = ttk.Frame(nb)
-        self.birthframe = ttk.Frame(nb)
-        self.lostframe  = ttk.Frame(nb)
-        self.neutframe  = ttk.Frame(nb)
-        self.trapframe  = ttk.Frame(nb)
-        style = ttk.Style()
-        style.theme_settings("default", {"TNotebook.Tab": {"configure": {"padding": [20, 5]}}})
+        header_grid.addWidget(menubar, 0, 0, 1, 10)
 
-        nb.add(self.fbmframe  , text='2D dist')
-        nb.add(self.trapframe , text='Trap. frac.')
-        nb.add(self.neutframe , text='Bt BB neut')
-        nb.add(self.birthframe, text='Birth profile')
-        nb.add(self.lostframe, text='Losses')
-
-#----------
-# FBM plots
-#----------
-
-        polframe = ttk.Frame(self.fbmframe, width=rframe_wid)
-        polframe.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
-        polframe.pack_propagate(0)
-
-        r_fbmframe = ttk.Frame(self.fbmframe, width=rframe_wid)
-        r_fbmframe.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
-        r_fbmframe.pack_propagate(0)
-
-        comm_fbmframe = ttk.Frame(r_fbmframe)
-        comm_fbmframe.pack(side=tk.TOP, fill=tk.BOTH)
-        bdens_frame = ttk.Frame(r_fbmframe)
-        bdens_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-        cell_fbmframe = ttk.Frame(r_fbmframe)
-        cell_fbmframe.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-
-        self.butt_d = {}
-        self.buttons(comm_fbmframe, 'D_NBI')
-
-# Poloidal canvas 
-
-        fig_pol = Figure()
-        can_pol = FigureCanvasTkAgg(fig_pol, master=polframe)
-        can_pol._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-
-        axpol = fig_pol.add_subplot(1, 1, 1, aspect='equal')
-        if 'gc_d' in globals():
-            for gc in gc_d.values():
-                axpol.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
-
-        self.can_fbm   = {}
-        self.cell_mark = {}
-        self.fig_cell = {}
-
-# Bdens plot
-
-        self.plot_bdens(bdens_frame, 'D_NBI')
-
-# Phase-space plot
-
-        fig_cell  = Figure(figsize=(3.5, 3.), dpi=100)
-        axcell = fig_cell.add_subplot(1, 1, 1)
-        fig_cell.subplots_adjust(left=0.14, bottom=0.15, right=0.82, top=0.92)
-        can_cell = FigureCanvasTkAgg(fig_cell, master=cell_fbmframe)
-        can_cell._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-        axcell.set_xlabel('Energy [keV]', fontsize=fsize)
-        axcell.set_ylabel('Pitch angle' , fontsize=fsize)
-        axcell.set_ylim([-1,1])
-
-        viewer.mainloop()
-
-
-    def about(self):
-
-        mytext = 'Documentation at <a href="http://www.aug.ipp.mpg.de/aug/manuals/transp/fbm/plot_fbm.html">FBM homepage</a>'
-        h = tkhyper.HyperlinkMessageBox("Help", mytext, "300x60")
-
-
-    def buttons(self, frame, spc_lbl):
-# Buttons
-
-        box = {}
-        n_hframes = 6
-        for jframe in range(n_hframes):
-            box[jframe] = ttk.Frame(frame)
-            box[jframe].pack(side=tk.TOP, fill=tk.X, pady=2)
-
-        self.butt_d[spc_lbl] = {}
-        self.butt_d[spc_lbl]['th_int']    = tk.BooleanVar()
-        self.butt_d[spc_lbl]['vol_int']   = tk.BooleanVar()
-        self.butt_d[spc_lbl]['log_scale'] = tk.BooleanVar()
-        self.butt_d[spc_lbl]['log_scale'].set(True)
-
-        lb1 = ttk.Label(box[0], text='Right-mouse click on a cell for local FBM plot')
-
-        cb1 = ttk.Checkbutton(box[2], text='Theta averaged FBM', variable=self.butt_d[spc_lbl]['th_int'])
-        cb2 = ttk.Checkbutton(box[3], text='Volume averaged FBM', variable=self.butt_d[spc_lbl]['vol_int'])
-
-        for but in (cb1, cb2, lb1):
-            but.pack(side=tk.TOP, anchor=tk.W, padx=10, pady=2)
-
-        Elbl = ttk.Label(box[4], text='Emax [keV]')
-        self.butt_d[spc_lbl]['Emax'] = ttk.Entry(box[4], width=12)
-        self.butt_d[spc_lbl]['Emax'].insert(0, 100)
-        for but in (Elbl, self.butt_d[spc_lbl]['Emax']):
-            but.pack(side=tk.LEFT, anchor=tk.W, padx=10, pady=2)
-
-        cb3 = ttk.Checkbutton(box[5], text='Log scale', variable=self.butt_d[spc_lbl]['log_scale'])
-        fminlbl = ttk.Label(box[5], text='f_log_min')
-        fmaxlbl = ttk.Label(box[5], text='f_log_max')
-        self.butt_d[spc_lbl]['fmin'] = ttk.Entry(box[5], width=12)
-        self.butt_d[spc_lbl]['fmin'].insert(0, 4.5)
-        self.butt_d[spc_lbl]['fmax'] = ttk.Entry(box[5], width=12)
-        self.butt_d[spc_lbl]['fmax'].insert(0, 8.5)
-        for but in (cb3, fminlbl, self.butt_d[spc_lbl]['fmin'], fmaxlbl, self.butt_d[spc_lbl]['fmax']):
-            but.pack(side=tk.LEFT, anchor=tk.W, padx=10, pady=5)
-
-
-
-    def plot_bdens(self, frame, spc_lbl):
-
-        for child in frame.winfo_children():
-            child.destroy()
-        
-        fig_bdens = Figure(figsize=(3.5, 3.), dpi=100)
-        axbdens = fig_bdens.add_subplot(1, 1, 1)
-        fig_bdens.subplots_adjust(left=0.13, bottom=0.12, right=0.95, top=0.9)
-        can_bdens = FigureCanvasTkAgg(fig_bdens, master=frame)
-        can_bdens._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-        axbdens.set_xlabel(r'$\rho_{tor}$',fontsize=fsize)
-        axbdens.set_ylabel('%s [1/cm**3]' %bdens_d[spc_lbl],fontsize=fsize)
-        axbdens.set_xlim([0, 1])
-
-        if not hasattr(self, 'fbmr'):
-            axbdens.plot([], [], 'r-', label='From FBM', linewidth=2.5)
-            axbdens.plot([], [], 'g-', label='From CDF', linewidth=2.5)
-        else:
-            axbdens.plot(self.fbmr.rho_grid, self.fbmr.bdens[spc_lbl])
-            axbdens.plot(self.cv['X'], self.cv[bdens_d[spc_lbl]])
-
-        axbdens.ticklabel_format(axis='y', style='sci', scilimits=(-4,-4))
-        axbdens.yaxis.major.formatter._useMathText = True
-
-        axbdens.legend()
-        can_bdens.draw()
-
-
-    def plot_trapdens(self, frame, spc_lbl):
-
-        for child in frame.winfo_children():
-            child.destroy()
-
-        fig_trapdens = Figure(figsize=(5.5, 4.), dpi=100)
-        axtrapdens = fig_trapdens.add_subplot(1, 1, 1)
-        fig_trapdens.subplots_adjust(left=0.13, bottom=0.15, right=0.95, top=0.94)
-        can_trapdens = FigureCanvasTkAgg(fig_trapdens, master=frame)
-        can_trapdens._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH)
-        axtrapdens.set_xlabel(r'$\rho_{tor}$',fontsize=fsize)
-        axtrapdens.set_ylabel('Trapped fraction',fontsize=fsize)
-        axtrapdens.set_xlim([0, 1])
-        axtrapdens.set_ylim([0, 1])
-
-        if hasattr(self, 'fbmr'):
-            frac_trap = self.fbmr.btrap[spc_lbl]/self.fbmr.bdens[spc_lbl]
-            axtrapdens.plot(self.fbmr.rho_grid, frac_trap, 'r-', linewidth=2.5)
-        else:
-            axtrapdens.plot([], [])
-        toolbar = nt2tk(can_trapdens, frame)
-        toolbar.update()
-
-        can_trapdens.draw()
-
-
-    def fig_plot(self, frame, title, zdata, zmin=None, zmax=None, spc_lbl=None):
-
-        fbmfile  = self.ffbm.split('/')[-1]
-        runid    = fbmfile[:8]
-
-        print('Plot %s' %title)
-
-        title += ', Run %s, t =%6.3f s' %(runid, self.fbmr.time)
-
-        for child in frame.winfo_children():
-            child.destroy()
-
-        fig = Figure()
-        can = FigureCanvasTkAgg(fig, master=frame)
-        can._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-        fig.subplots_adjust(left=0.08, bottom=0.08, right=0.8, top=0.92)
-        fig.text(0.5, 0.95, title, ha='center')
-
-        if not hasattr(self, 'x_grid'):
-            xgrid = np.linspace(self.fbmr.r2d.min(), self.fbmr.r2d.max(), 1000)
-            ygrid = np.linspace(self.fbmr.z2d.min(), self.fbmr.z2d.max(), 1000)
-            self.x_grid, self.y_grid = np.meshgrid(xgrid, ygrid, indexing='ij')
-
-        ax = fig.add_subplot(1, 1, 1, aspect='equal')
-        xext=(self.fbmr.rlim_pts.min()+self.fbmr.rlim_pts.max())*0.025
-        yext=(-self.fbmr.ylim_pts.min()+self.fbmr.ylim_pts.max())*0.025
-        xpol_lim=np.array ([self.fbmr.rlim_pts.min()-xext,self.fbmr.rlim_pts.max()+xext])
-        ypol_lim=np.array ([self.fbmr.ylim_pts.min()-yext,self.fbmr.ylim_pts.max()+yext])
-        xpol_lim=np.round(xpol_lim).astype(int)
-        ypol_lim=np.round(ypol_lim).astype(int)
-        rlin=self.fbmr.rlim_pts
-        zlin=self.fbmr.ylim_pts
-
-        ax.set_xlim(xpol_lim)
-        ax.set_ylim(ypol_lim)
-        ax.plot(rlin, zlin, 'g-', linewidth=2.5)
-
-        if 'gc_d' in globals():
-            for gc in gc_d.values():
-                ax.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
-        for irho in range(self.fbmr.r_surf.shape[0]):
-            ax.plot(self.fbmr.r_surf[irho, :], self.fbmr.z_surf[irho, :], 'r-', linewidth=0.5)
-        for jbar, myr in enumerate(self.fbmr.rbar):
-            ax.plot(myr, self.fbmr.zbar[jbar], 'r-')
-
-# Selected point
-        ctr_f = griddata((self.fbmr.r2d, self.fbmr.z2d), zdata, \
-             (self.x_grid, self.y_grid), method='linear')
-
-        if zmin is None:
-            zmin = np.nanmin(ctr_f)
-        if zmax is None:
-            zmax = np.nanmax(ctr_f)
-        n_levels = 11
-        bounds = np.linspace(zmin, zmax, n_levels)
-        ax.contourf(self.x_grid, self.y_grid, ctr_f, bounds)
-        norm = mpl.colors.Normalize(vmin=zmin, vmax=zmax)
-        cb_ax = fig.add_axes([0.82, 0.08, 0.09, 0.84])
-        mpl.colorbar.ColorbarBase(cb_ax,norm=norm,boundaries=bounds,ticks=bounds)
-
-        if spc_lbl is not None:
-            self.can_fbm[spc_lbl]    = can
-            self.cell_mark[spc_lbl], = ax.plot([], [], 'ro')
-
-# Toolbar
-        toolbar = nt2tk(can, frame)
-        toolbar.update()
+        self.setStyleSheet("QLabel { width: 4 }")
+        self.setStyleSheet("QLineEdit { width: 4 }")
+        self.setGeometry(10, 10, xwin, ywin)
+        self.setWindowTitle('FBM viewer')
+        self.show()
 
 
     def load_fbm(self):
 
         dir_init = config.tr_clientDir
-        self.ffbm = tkfd.askopenfilename(  initialdir=dir_init, filetypes= \
-                                        (("FBM", "*.DATA*"),)    )
-
-        print(self.ffbm)
-
-        if self.ffbm.strip() == '':
-            tkmb.showerror("Error", 'Select a FBM file: run File->read_fbm')
-        else:
-            self.read_all()
+        if os.getenv('USER') == 'git':
+            dir_init += '/29795/A05'
+        ffbm =  QFileDialog.getOpenFileName(self, 'Open file', dir_init, "AC files (*.DATA*)")
+        f_ac = ffbm[0]
+        self.read_all(f_ac)
 
 
-    def read_all(self):
+    def read_all(self, f_ac):
 
-        fbmdir, fbmfile  = os.path.split(self.ffbm)
+        fbmdir, fbmfile  = os.path.split(f_ac)
 
         tmp = fbmfile.split('.')
         runid = tmp[0]
         t_id = tmp[1][4:]
-        self.fbmr = read_ac.READ_FBM(self.ffbm)
 
-# Read FBM 
-
-        self.species = []
-        for spc_lbl in self.fbmr.int_en_pit_frac_trap.keys():
-            self.species.append(spc_lbl)
+# Read FBM
+        self.fbmr = read_ac.READ_FBM(f_ac)
 
 # Read CDF
         tr_file = '%s/%s.CDF' %(fbmdir, runid)
-        if not os.path.isfile(tr_file):
-            print('%s not found' %tr_file)
-            tkmb.showerror("Error", '%s not found')
         cv_all = netcdf_file(tr_file, 'r', mmap=False).variables
         bdlist = [x for x in bdens_d.values()]
         sigs = ['BTNT2_DD', 'BBNT2_DD', 'TIME3', 'X'] + bdlist
@@ -363,174 +208,229 @@ class FBM:
             if lbl in cv_all.keys():
                 self.cv[lbl] = cv_all[lbl][jtclose]
 
-# Plots
-
-        if hasattr(self, 'x_grid'):
-            del self.x_grid, self.y_grid
-
-        self.plot_neut(self.neutframe)
-        self.plot_dist(self.fbmframe)
-        self.plot_trap(self.trapframe)
-        plot_lost.get_lost(runid, self.fbmr, topframe=self.lostframe)
-      
-        birth_file =  '%s/%s_birth.cdf%s' %(fbmdir, runid, t_id)
-        plot_birth.read_birth(birth_file, self.fbmr, topframe=self.birthframe)
-
-
-    def plot_neut(self, frame):
-
-        if 'BTNT2_DD' not in self.cv.keys():
-            print('No beam-target neutrons calculated, H plasma?')
-            return
-        for child in frame.winfo_children():
-            child.destroy()
-
         btneut = self.cv['BTNT2_DD']
         bbneut = self.cv['BBNT2_DD']
         if (np.max(btneut) == 0) and (np.max(bbneut) == 0):
             print('Zero neutrons')
             return
-        indbt = (btneut == 0)
-        indbb = (btneut == 0)
-        btneut[indbt] = np.nan
-        bbneut[indbb] = np.nan
-        print('Time in CDF and cdf: %6.3f, %6.3f s' %(self.cv['TIME3'], self.fbmr.time) )
+        btneut[btneut == 0] = np.nan # for plotting
+        bbneut[bbneut == 0] = np.nan # for plotting
 
-        btframe = ttk.Frame(frame)
-        bbframe = ttk.Frame(frame)
-        for frame in btframe, bbframe:
-            frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+#--------
+# Plots
+#--------
+  
+        nR = 100
+        nZ = 130
+        self.r_grid, self.z_grid = np.meshgrid(
+        np.linspace(self.fbmr.r2d.min(), self.fbmr.r2d.max(), nR),
+        np.linspace(self.fbmr.z2d.min(), self.fbmr.z2d.max(), nZ))
 
-        self.fig_plot(btframe, 'Beam-target neutrons', btneut)
-        self.fig_plot(bbframe, 'Beam-beam neutrons'  , bbneut)
+        self.plotDistribution(self.distLayout)
 
+# Trapped particle fraction
+        plotTrapped(self.fbmr, self.r_grid, self.z_grid, self.trapLayout)
 
-    def plot_trap(self, frame):
+# Neutron
+        f_in = btneut
+        contourPlotRZ(self.fbmr, self.figNeut1, self.r_grid, self.z_grid, f_in, title='Beam-target neutrons')
+        f_in = bbneut
+        contourPlotRZ(self.fbmr, self.figNeut2, self.r_grid, self.z_grid, f_in, title='Beam-beam neutrons')
 
-        for child in frame.winfo_children():
-            child.destroy()
+# Lost particles and power
+        plotLost(self.fbmr, self.r_grid, self.z_grid, self.lossLayout)
 
-        nbtrap = ttk.Notebook(frame, name='nb')
-        nbtrap.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-
-        for spc_lbl in self.species:
-            trap_frame = ttk.Frame(nbtrap)
-            pol_trapframe = ttk.Frame(trap_frame, width=rframe_wid)
-            prof_trapframe = ttk.Frame(trap_frame, width=rframe_wid)
-            pol_trapframe.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
-            pol_trapframe.pack_propagate(0)
-            prof_trapframe.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
-            prof_trapframe.pack_propagate(0)
-            nbtrap.add(trap_frame, text=spc_lbl)
-
-            title = 'Trapped fast ion fraction %s' %spc_lbl
-            azmax = np.nanmax(np.abs(self.fbmr.int_en_pit_frac_trap[spc_lbl]))
-            if np.isnan(azmax):
-                continue
-            if azmax < 1e-4:
-                continue
-            self.fig_plot(pol_trapframe, title, self.fbmr.int_en_pit_frac_trap[spc_lbl], zmin=0)
-            self.plot_trapdens(prof_trapframe, spc_lbl)
-
-
-    def plot_dist(self, frame):
-
-        for child in frame.winfo_children():
-            child.destroy()
-
-        self.nbdist = ttk.Notebook(frame, name='nb')
-        self.nbdist.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-
-        for spc_lbl in self.species:
-            nbframe = ttk.Frame(self.nbdist)
-            pol_frame = ttk.Frame(nbframe, width=rframe_wid)
-            pol_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
-            pol_frame.pack_propagate(0)
-            r_fbmframe = ttk.Frame(nbframe, width=rframe_wid)
-            r_fbmframe.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
-            r_fbmframe.pack_propagate(0)
-
-            comm_fbmframe = ttk.Frame(r_fbmframe)
-            comm_fbmframe.pack(side=tk.TOP, fill=tk.BOTH)
-            bdens_frame = ttk.Frame(r_fbmframe, height=200)
-            bdens_frame.pack(side=tk.TOP, fill=tk.BOTH)
-            cell_frame = ttk.Frame(r_fbmframe)
-            cell_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-
-            self.nbdist.add(nbframe, text=spc_lbl)
-
-            title = r'2D distribution %s, $\int\int$ dE dp.a.' %spc_lbl
-            azmax = np.max(np.abs(self.fbmr.int_en_pit[spc_lbl]))
-            if np.isnan(azmax):
-                continue
-            if azmax < 1e-3:
-                continue
-            self.fig_plot(pol_frame, title, self.fbmr.int_en_pit[spc_lbl], zmin=0, spc_lbl=spc_lbl)
-
-            self.fig_cell[spc_lbl]  = Figure(figsize=(3.5, 3.), dpi=100)
-            self.fig_cell[spc_lbl].subplots_adjust(left=0.14, bottom=0.15, right=0.82, top=0.92)
-            can_cell = FigureCanvasTkAgg(self.fig_cell[spc_lbl], master=cell_frame)
-            can_cell._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-            toolbar = nt2tk(can_cell, cell_frame)
-            toolbar.update()
-
-# Plots on the right
-            self.can_fbm[spc_lbl].mpl_connect('button_press_event', self.my_call)
-
-            self.buttons(comm_fbmframe, spc_lbl)
-            self.plot_bdens(bdens_frame, spc_lbl)
-            self.plot_fbm_cell(0, spc_lbl)
+# Particles birth
+        plotBirth(self.fbmr, self.r_grid, self.z_grid, self.birthLayout)
 
 
     def my_call(self, event):
 
-        if event.button in (2,3):
+        if event.button in (2, 3):
             dist2 = (self.fbmr.r2d - event.xdata)**2 + (self.fbmr.z2d - event.ydata)**2
             jcell = np.argmin(dist2)
             self.plot_fbm_cell(jcell)
 
 
-    def plot_fbm_cell(self, jcell, spc_lbl=None):
+    def plotDistribution(self, distLayout):
 
-        if spc_lbl is None:
-            spc_lbl = self.species[self.nbdist.index('current')]
+        clear_layout(distLayout)
 
-        self.fig_cell[spc_lbl].clf()
-        ax = self.fig_cell[spc_lbl].gca()
+        distTabs = QTabWidget()
+        distTabs.setStyleSheet("QTabBar::tab { width: 120 }")
+        distLayout.addWidget(distTabs)
+        self.figDist = {}
+        for spc_lbl, f_in in self.fbmr.int_en_pit.items():
+            qspec = QWidget()
+            distTabs.addTab(qspec, spc_lbl)
+            tabLayout = QHBoxLayout()
+            qspec.setLayout(tabLayout)
+            dist_right_widget = QWidget()
+            dist_left_widget  = QWidget()
+            dist_left_layout  = QHBoxLayout()
+            dist_right_layout = QVBoxLayout()
+            dist_right1_widget = QWidget()
+            dist_right2_widget = QWidget()
+            dist_right3_widget = QWidget()
+            dist_left_widget.setLayout(dist_left_layout)
+            dist_right_widget.setLayout(dist_right_layout)
+
+            self.figDist[spc_lbl] = Figure()
+            canvasDist = FigureCanvas(self.figDist[spc_lbl])
+            axDist = self.figDist[spc_lbl].add_subplot(111, aspect='equal')
+            axDist.set_xlabel('R [cm]')
+            axDist.set_ylabel('Z [cm]')
+# Plot vessel even before reading FBM file
+            if 'gc_d' in globals():
+                for gc in gc_d.values():
+                    axDist.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
+            dist_left_layout.addWidget(canvasDist)
+            tabLayout.addWidget(dist_left_widget)
+            tabLayout.addWidget(dist_right_widget)
+# Right column
+            dist_right_layout.addWidget(dist_right1_widget)
+            dist_right_layout.addWidget(dist_right2_widget)
+            dist_right_layout.addWidget(dist_right3_widget)
+
+# Buttons in dist_right1_widget
+            widgetHeight = 38
+            textWidth = 100
+            dist_right1_layout = QVBoxLayout()
+            dist_right2_layout = QVBoxLayout()
+            dist_right3_layout = QVBoxLayout()
+            dist_right1_widget.setLayout(dist_right1_layout)
+            dist_right2_widget.setLayout(dist_right2_layout)
+            dist_right3_widget.setLayout(dist_right3_layout)
+
+            dist_right1_widget.setFixedHeight(4*widgetHeight + 5)
+            dist_right2_widget.setFixedHeight(400)
+            dist_right2_widget.setFixedHeight(500)
+            mouseLbl = QLabel('Right-mouse click on a cell for local FBM plot')
+            buttons_widget = QWidget()
+            buttons_layout = QHBoxLayout()
+            buttons_widget.setLayout(buttons_layout)
+            self.butt_d = {}
+            self.butt_d['integral'] = QButtonGroup()
+            for jcol, val in enumerate(rblist):
+                but = QRadioButton(val)
+                if jcol == 0:
+                    but.setChecked(True)
+                self.butt_d['integral'].addButton(but)
+                self.butt_d['integral'].setId(but, jcol)
+                buttons_layout.addWidget(but)
+            energy_widget = QWidget()
+            energy_layout = QHBoxLayout()
+            Elbl = QLabel('Emax [keV]')
+            self.butt_d['Emax'] = QDoubleSpinBox()
+            self.butt_d['Emax'].setValue(100.)
+            self.butt_d['Emax'].setDecimals(1)
+            self.butt_d['Emax'].setRange(0., 1000.)
+            energy_widget.setLayout(energy_layout)
+            energy_layout.addWidget(Elbl)
+            energy_layout.addWidget(self.butt_d['Emax'])
+
+            log_widget = QWidget()
+            log_layout = QHBoxLayout()
+            log_widget.setLayout(log_layout)
+            self.butt_d['logScale'] = QCheckBox('Log scale')
+            self.butt_d['logScale'].setChecked(True)
+            logMinLbl = QLabel('f_log_min')
+            logMaxLbl = QLabel('f_log_max')
+            self.butt_d['logMin'] = QDoubleSpinBox()
+            self.butt_d['logMax'] = QDoubleSpinBox()
+            self.butt_d['logMin'].setValue(4.5)
+            self.butt_d['logMax'].setValue(8.5)
+            self.butt_d['logMin'].setDecimals(2)
+            self.butt_d['logMax'].setDecimals(2)
+            self.butt_d['logMin'].setRange(-1., 20.)
+            self.butt_d['logMax'].setRange(-1., 20.)
+            for lbl in ('Emax', 'logMin', 'logMax'):
+                self.butt_d[lbl].setFixedWidth(textWidth)
+            for but in (self.butt_d['logScale'], logMinLbl, self.butt_d['logMin'], logMaxLbl, self.butt_d['logMax']):
+                log_layout.addWidget(but)
+
+            for layout in dist_right_layout, dist_right1_layout, dist_right2_layout, dist_right3_layout:
+                layout.setContentsMargins(0, 0, 0, 0)
+# BDENS canvas in dist_right2_widget
+
+            figBdens = Figure()
+            canvasBdens = FigureCanvas(figBdens)
+
+# Bdens
+            axBdens = figBdens.add_subplot(111)
+            figBdens.subplots_adjust(left=0.1, bottom=0.2, right=0.97, top=0.95)
+            axBdens.plot(self.fbmr.rho_grid, self.fbmr.bdens[spc_lbl], 'r-', label='From FBM', linewidth=2.5)
+            axBdens.plot(self.cv['X'], self.cv[bdens_d[spc_lbl]], 'g-', label='From CDF', linewidth=2.5)
+            axBdens.set_xlabel(r'$\rho_{tor}$', fontsize=fsize)
+            axBdens.set_ylabel(r'%s [1/cm$^3$]' %bdens_d[spc_lbl], fontsize=fsize)
+            axBdens.set_xlim([0, 1])
+            axBdens.set_ylim(ymin = 0)
+            axBdens.legend()
+            canvasBdens.draw()
+
+# FBM integrated over E, mu
+            ax = contourPlotRZ(self.fbmr, self.figDist[spc_lbl], self.r_grid, self.z_grid, f_in, title=r'2D distribution, $\int\int$ dE dp.a.')
+            self.cell_mark, = ax.plot([], [], 'ro')
+            self.currentSpecies = spc_lbl
+            self.figDist[spc_lbl].canvas.mpl_connect('button_press_event', self.my_call)
+
+# Cell canvas in dist_right2_widget
+
+            self.figCell = Figure()
+            canvasCell = FigureCanvas(self.figCell)
+            toolbar = NavigationToolbar(canvasCell)
+
+            for wid in mouseLbl, buttons_widget, energy_widget, log_widget:
+                dist_right1_layout.addWidget(wid)
+                wid.setFixedHeight(widgetHeight)
+            dist_right2_layout.addWidget(canvasBdens)
+            dist_right3_layout.addWidget(canvasCell)
+            dist_right3_layout.addWidget(toolbar)
+            canvasCell.setFixedHeight(450)
+            toolbar.setFixedHeight(50)
+            self.currentSpecies = spc_lbl
+            self.plot_fbm_cell(0)
+
+
+    def plot_fbm_cell(self, jcell):
+
+        self.figCell.clf()
+        spc_lbl = self.currentSpecies
+        ax = self.figCell.add_subplot(111)
+        self.figCell.subplots_adjust(left=0.11, bottom=0.23, right=0.85, top=0.95)
         ax.set_ylim((-1, 1))
         ax.set_xlabel('Energy [keV]', fontsize=fsize)
         ax.set_ylabel('Pitch angle' , fontsize=fsize)
 
-        thint    = self.butt_d[spc_lbl]['th_int'].get()
-        volint   = self.butt_d[spc_lbl]['vol_int'].get()
-        logscale = self.butt_d[spc_lbl]['log_scale'].get()
+        bid = self.butt_d['integral'].checkedId()
+        integrFlag = rblist[bid]
 
-        jrho = np.where(self.fbmr.rho_grid == self.fbmr.x2d[jcell])[0][0]
-
-        if volint:
-            self.cell_mark[spc_lbl].set_data(self.fbmr.r2d, self.fbmr.z2d)
+        if integrFlag == 'Volume averaged':
+            self.cell_mark.set_data(self.fbmr.r2d, self.fbmr.z2d)
             tit_lbl = 'Volume averaged, t=%6.3f' %self.fbmr.time
             zarr_lin = self.fbmr.dens_vol[spc_lbl]
+        elif integrFlag == 'Theta averaged':
+            jrho = np.where(self.fbmr.rho_grid == self.fbmr.x2d[jcell])[0][0]
+            ind = np.where(self.fbmr.x2d == self.fbmr.x2d[jcell])
+            self.cell_mark.set_data(self.fbmr.r2d[ind], self.fbmr.z2d[ind])
+            tit_lbl = r'$\rho_{tor}$' + \
+                      r' = %8.4f, $\theta$ averaged, t=%6.3f' %(self.fbmr.x2d[jcell], self.fbmr.time)
+            zarr_lin = self.fbmr.dens_zone[spc_lbl][jrho]
         else:
-            if thint:
-                ind=np.where(self.fbmr.x2d == self.fbmr.x2d[jcell])
-                self.cell_mark[spc_lbl].set_data(self.fbmr.r2d[ind], self.fbmr.z2d[ind])
-                tit_lbl = r'$\rho_{tor}$' + \
-                          r' = %8.4f, $\theta$ averaged, t=%6.3f' %(self.fbmr.x2d[jcell], self.fbmr.time)
-                zarr_lin = self.fbmr.dens_zone[spc_lbl][jrho]
-            else:
-                self.cell_mark[spc_lbl].set_data(self.fbmr.r2d[jcell], self.fbmr.z2d[jcell])
-                tit_lbl = r'$\rho_{tor} = $ %8.4f $\theta = $%8.4f deg, t=%6.3f s' \
-                          %(self.fbmr.x2d[jcell], np.degrees(self.fbmr.th2d[jcell]), self.fbmr.time)
-                zarr_lin = self.fbmr.fdist[spc_lbl][jcell]
-        self.can_fbm[spc_lbl].draw() # Update red marker
+            self.cell_mark.set_data([self.fbmr.r2d[jcell]], [self.fbmr.z2d[jcell]])
+            tit_lbl = r'$\rho_{tor} = $ %8.4f $\theta = $%8.4f deg, t=%6.3f s' \
+                %(self.fbmr.x2d[jcell], np.degrees(self.fbmr.th2d[jcell]), self.fbmr.time)
+            zarr_lin = self.fbmr.fdist[spc_lbl][jcell]
+        self.figDist[spc_lbl].canvas.draw() # update canvas for the red marker
+        self.figCell.canvas.draw() # Update red marker
 
         zmax_lin = np.max(zarr_lin[~np.isnan(zarr_lin)])
         zmin_lin = 1e-8*zmax_lin
-#        flog_max = np.log10(zmax_lin)
-#        flog_min = np.log10(zmin_lin)
-        flog_min = float(self.butt_d[spc_lbl]['fmin'].get())
-        flog_max = float(self.butt_d[spc_lbl]['fmax'].get())
+        flog_max = np.log10(zmax_lin)
+        flog_min = np.log10(zmin_lin)
+        flog_min = self.butt_d['logMin'].value()
+        flog_max = self.butt_d['logMax'].value()
+        logscale = self.butt_d['logScale'].isChecked()
         indzero = np.where(zarr_lin <= zmin_lin)
         zarr_lin[indzero] = np.nan
         zarr_log = np.log10(zarr_lin)
@@ -546,22 +446,25 @@ class FBM:
 
         bounds = np.linspace(zmin, zmax, n_levels)
 
-        Emax = float(self.butt_d[spc_lbl]['Emax'].get())
+        Emax = self.butt_d['Emax'].value()
         ax.set_xlim((0, Emax))
         ax.set_title(tit_lbl, fontsize=fsize)
 
         ctr = ax.contourf(1e-3*self.fbmr.e_d[spc_lbl], self.fbmr.a_d[spc_lbl], zarr, bounds)
         norm = mpl.colors.Normalize(vmin=zmin, vmax=zmax)
-        cb_ax = self.fig_cell[spc_lbl].add_axes([0.86, 0.05, 0.05, 0.91])
-        mpl.colorbar.ColorbarBase(cb_ax,norm=norm,boundaries=bounds,ticks=bounds)
+        cb_ax = self.figCell.add_axes([0.89, 0.15, 0.03, 0.84]) #l, b, w, h
+        mpl.colorbar.ColorbarBase(cb_ax, norm=norm, boundaries=bounds, ticks=bounds)
         ax.plot([0, Emax], [0, 0], 'k-')
-        if not volint and not thint:
+        if integrFlag == 'Single cell':
             ax.plot([0, Emax], [ self.fbmr.trap_pit[spc_lbl][jcell],  self.fbmr.trap_pit[spc_lbl][jcell]], 'g-')
             ax.plot([0, Emax], [-self.fbmr.trap_pit[spc_lbl][jcell], -self.fbmr.trap_pit[spc_lbl][jcell]], 'g-')
 
         ax.figure.canvas.draw()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 
-    FBM()
+
+    app = QApplication(sys.argv)
+    main = FBM()
+    app.exec_()
