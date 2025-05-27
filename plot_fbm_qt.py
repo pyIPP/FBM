@@ -26,6 +26,8 @@ try:
 except:
     pass
 import read_ac, plot_birth, config, plot_lost
+from contourPlotRZ import contourPlotRZ
+
 
 os.environ['BROWSER'] = '/usr/bin/firefox'
 
@@ -329,8 +331,9 @@ class FBM(QMainWindow):
         np.linspace(self.fbmr.z2d.min(), self.fbmr.z2d.max(), 100))
 
 # Bdens
-        self.figBdens.clf()
-        axBdens = self.figBdens.add_subplot(111)
+        for spc_lbl in self.species:
+            self.figBdens.clf()
+            axBdens = self.figBdens.add_subplot(111)
         self.figBdens.subplots_adjust(left=0.1, bottom=0.2, right=0.97, top=0.95)
         axBdens.plot(self.fbmr.rho_grid, self.fbmr.bdens[spc_lbl], 'r-', label='From FBM', linewidth=2.5)
         axBdens.plot(self.cv['X'], self.cv[bdens_d[spc_lbl]], 'g-', label='From CDF', linewidth=2.5)
@@ -343,19 +346,19 @@ class FBM(QMainWindow):
 
 # FBM integrated over E, mu
         f_in = self.fbmr.int_en_pit[spc_lbl]
-        ax = self.contourPlotRZ(self.figDist, r_grid, z_grid, f_in, title=r'2D distribution, $\int\int$ dE dp.a.')
+        ax = contourPlotRZ(self.fbmr, self.figDist, r_grid, z_grid, f_in, title=r'2D distribution, $\int\int$ dE dp.a.')
         self.cell_mark, = ax.plot([], [], 'ro')
         self.figDist.canvas.mpl_connect('button_press_event', self.my_call)
 
 # Trapped particle fraction
         f_in = self.fbmr.int_en_pit_frac_trap[spc_lbl]
-        self.contourPlotRZ(self.figTrap1, r_grid, z_grid, f_in, title='Trapped fast ion fraction')
+        contourPlotRZ(self.fbmr, self.figTrap1, r_grid, z_grid, f_in, title='Trapped fast ion fraction')
 
 # Neutron
         f_in = btneut
-        self.contourPlotRZ(self.figNeut1, r_grid, z_grid, f_in, title='Beam-target neutrons')
+        self.contourPlotRZ(self.fbmr, self.figNeut1, r_grid, z_grid, f_in, title='Beam-target neutrons')
         f_in = bbneut
-        self.contourPlotRZ(self.figNeut2, r_grid, z_grid, f_in, title='Beam-beam neutrons')
+        contourPlotRZ(self.fbmr, self.figNeut2, r_grid, z_grid, f_in, title='Beam-beam neutrons')
 
 
     def my_call(self, event):
@@ -366,35 +369,35 @@ class FBM(QMainWindow):
             self.plot_fbm_cell(jcell)
 
 
-    def contourPlotRZ(self, fig, r_grid, z_grid, f_in, title=''):
+    def contourPlotRZ(self, fbmr, fig, r_grid, z_grid, f_in, title=''):
 
-        fbmfile  = self.fbmr.fileName.split('/')[-1]
+        fbmfile  = fbmr.fileName.split('/')[-1]
         runid    = fbmfile[:8]
-        title += ', Run %s, t =%6.3f s' %(runid, self.fbmr.time)
+        title += ', Run %s, t =%6.3f s' %(runid, fbmr.time)
         fig.clf()
         ax = fig.add_subplot(111, aspect='equal')
         fig.text(0.5, 0.95, title, ha='center')
         if 'gc_d' in globals():
             for gc in gc_d.values():
                 ax.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
-        for irho in range(self.fbmr.r_surf.shape[0]):
-            ax.plot(self.fbmr.r_surf[irho, :], self.fbmr.z_surf[irho, :], 'r-', linewidth=0.5)
-        for jbar, myr in enumerate(self.fbmr.rbar):
-            ax.plot(myr, self.fbmr.zbar[jbar], 'r-')
-        f_grid = griddata((self.fbmr.r2d, self.fbmr.z2d), f_in, (r_grid, z_grid), method='cubic')
+        for irho in range(fbmr.r_surf.shape[0]):
+            ax.plot(fbmr.r_surf[irho, :], fbmr.z_surf[irho, :], 'r-', linewidth=0.5)
+        for jbar, myr in enumerate(fbmr.rbar):
+            ax.plot(myr, fbmr.zbar[jbar], 'r-')
+        f_grid = griddata((fbmr.r2d, fbmr.z2d), f_in, (r_grid, z_grid), method='cubic')
         plot2d = ax.contourf(r_grid, z_grid, f_grid, levels=50, cmap='viridis')
         fig.colorbar(plot2d, aspect=20)
         ax.set_xlabel('R [cm]')
         ax.set_ylabel('Z [cm]')
 # Draw limiter, set plot boundaries
-        xext =  (self.fbmr.rlim_pts.min() + self.fbmr.rlim_pts.max())*0.025
-        yext = (-self.fbmr.ylim_pts.min() + self.fbmr.ylim_pts.max())*0.025
-        xpol_lim=np.array ([self.fbmr.rlim_pts.min() - xext, self.fbmr.rlim_pts.max() + xext])
-        ypol_lim=np.array ([self.fbmr.ylim_pts.min() - yext, self.fbmr.ylim_pts.max() + yext])
+        xext =  (fbmr.rlim_pts.min() + fbmr.rlim_pts.max())*0.025
+        yext = (-fbmr.ylim_pts.min() + fbmr.ylim_pts.max())*0.025
+        xpol_lim=np.array ([fbmr.rlim_pts.min() - xext, fbmr.rlim_pts.max() + xext])
+        ypol_lim=np.array ([fbmr.ylim_pts.min() - yext, fbmr.ylim_pts.max() + yext])
         xpol_lim=np.round(xpol_lim).astype(int)
         ypol_lim=np.round(ypol_lim).astype(int)
-        rlin=self.fbmr.rlim_pts
-        zlin=self.fbmr.ylim_pts
+        rlin=fbmr.rlim_pts
+        zlin=fbmr.ylim_pts
         ax.set_xlim(xpol_lim)
         ax.set_ylim(ypol_lim)
         ax.plot(rlin, zlin, 'g-', linewidth=2.5)
