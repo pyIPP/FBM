@@ -1,5 +1,6 @@
 import os, logging
-from PyQt5.QtWidgets import QMainWindow, QWidget, QApplication, QGridLayout, QMenu, QAction, QLabel, QPushButton, QLineEdit, QCheckBox, QSpinBox, QDoubleSpinBox, QFileDialog, QRadioButton, QButtonGroup, QTabWidget, QVBoxLayout, QHBoxLayout
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QWidget, QTabWidget, QVBoxLayout, QHBoxLayout
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -13,8 +14,6 @@ try:
     import aug_sfutils as sf
     gc_d = sf.getgc()
     m2cm = 100.
-    xpol_lim = (90, 230)
-    ypol_lim = (-125, 125)
     tor_d = sf.getgc_tor(rotate=False)
 except:
     pass
@@ -25,7 +24,6 @@ limLinewidth = 2.5
 titSize = 14
 
 def clear_layout(layout):
-
     while layout.count():
         item = layout.takeAt(0)
         widget = item.widget()
@@ -37,7 +35,6 @@ def clear_layout(layout):
 
 
 def contourPlotRZ(fbm, fig, r_grid, z_grid, f_in, title=''):
-
     fbmfile = fbm.fileName.split('/')[-1]
     runid   = fbmfile[:8]
     title += ', run %s, t=%6.3f s' %(runid, fbm.time)
@@ -49,20 +46,18 @@ def contourPlotRZ(fbm, fig, r_grid, z_grid, f_in, title=''):
     fig.colorbar(plot2d, aspect=20)
     addGrids(fbm, ax)
     canvas = fig.canvas
-    canvas.draw()
-
     return ax
 
 
 def addGrids(fbm, ax):
-    
+
     if 'gc_d' in globals():
         for gc in gc_d.values():
             ax.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
-    for irho in range(fbm.r_surf.shape[0]):
-        ax.plot(fbm.r_surf[irho, :], fbm.z_surf[irho, :], 'r-', linewidth=cellLinewidth)
-    for jbar, myr in enumerate(fbm.rbar):
-        ax.plot(myr, fbm.zbar[jbar], 'r-')
+    for r, z in zip(fbm.r_surf, fbm.z_surf):
+        ax.plot(r, z, 'r-', linewidth=cellLinewidth)
+    for r, z in zip(fbm.rbar, fbm.zbar):
+        ax.plot(r, z, 'r-')
 # Draw limiter, set plot boundaries
     Rmax = fbm.rlim_pts.max()
     Rmin = fbm.rlim_pts.min()
@@ -84,40 +79,31 @@ def addGrids(fbm, ax):
 
 
 def plotTrapped(fbm, r_grid, z_grid, trapLayout):
-
     clear_layout(trapLayout)
-
     specTabs = QTabWidget()
     specTabs.setStyleSheet("QTabBar::tab { width: 120 }")
     trapLayout.addWidget(specTabs)
     for spc_lbl, f_in in fbm.int_en_pit_frac_trap.items():
         qspec = QWidget()
         specTabs.addTab(qspec, spc_lbl)
-        tabLayout = QHBoxLayout()
+        tabLayout = QVBoxLayout()
         qspec.setLayout(tabLayout)
-        trap_right_widget = QWidget()
-        trap_left_widget  = QWidget()
-        trap_left_layout  = QHBoxLayout()
-        trap_right_layout = QVBoxLayout()
-        trap_left_widget.setLayout(trap_left_layout)
-        trap_right_widget.setLayout(trap_right_layout)
         figTrap = Figure()
         canvasTrap = FigureCanvas(figTrap)
         axtrap = figTrap.add_subplot(111, aspect='equal')
-        trap_left_layout.addWidget(canvasTrap)
-        tabLayout.addWidget(trap_left_widget)
-        tabLayout.addWidget(trap_right_widget)
+        figTrap.subplots_adjust(left=0.32, bottom=0.08, right=0.72, top=0.92)
         contourPlotRZ(fbm, figTrap, r_grid, z_grid, f_in, title='Trapped fast ion fraction')
-        canvasTrap.draw()
+        toolbar = NavigationToolbar(canvasTrap)
+        tabLayout.addWidget(canvasTrap)
+        tabLayout.addWidget(toolbar)
 
 
 def plotLost(fbm, r_grid, z_grid, lossLayout):
 
     clear_layout(lossLayout)
-
-    lossTabs = QTabWidget()
-    lossTabs.setStyleSheet("QTabBar::tab { width: 120 }")
-    lossLayout.addWidget(lossTabs)
+    specTabs = QTabWidget()
+    specTabs.setStyleSheet("QTabBar::tab { width: 120 }")
+    lossLayout.addWidget(specTabs)
 
     colors = ('b','c', 'g', 'y', 'r')
     sizes = (7, 8, 9, 12, 14)
@@ -130,14 +116,14 @@ def plotLost(fbm, r_grid, z_grid, lossLayout):
     runid   = fbmfile[:8]
     for spc_lbl, weight in fbm.wghtlost.items():
         qspec = QWidget()
-        lossTabs.addTab(qspec, spc_lbl)
-        tabLayout = QHBoxLayout()
+        specTabs.addTab(qspec, spc_lbl)
+        tabLayout = QVBoxLayout()
         qspec.setLayout(tabLayout)
         figLost = Figure()
         canvasLost = FigureCanvas(figLost)
+        specTabs.addTab(qspec, spc_lbl)
         figLost.subplots_adjust(left=0.05, bottom=0.08, right=0.99, top=0.97, wspace=0.2, hspace=0)
         figLost.text(0.5, 0.95, '%s Power losses for %s, t =%6.3f s ' %(spc_lbl, runid, tbm1), ha='center', fontsize=titSize)
-        tabLayout.addWidget(canvasLost)
 
         Rj = np.array(fbm.rmjionlost[spc_lbl])
         zj = np.array(fbm.yyionlost[spc_lbl])
@@ -161,9 +147,7 @@ def plotLost(fbm, r_grid, z_grid, lossLayout):
         n_comp = len(comp_arr)
         ncols = n_comp + 1
 
-        pwr_lost = np.zeros(n_lost)
-        for il in range(n_lost): 
-            pwr_lost[il] = np.array(weight[il]*Elost[il]/(tbm2 - tbm1)*1.6021766*1.e-19)
+        pwr_lost = weight*Elost/(tbm2 - tbm1)*1.6021766*1.e-19
         pwr_lost_tot = np.sum(pwr_lost)
 
         pwr_min = np.min(pwr_lost[np.nonzero(pwr_lost)])
@@ -172,8 +156,7 @@ def plotLost(fbm, r_grid, z_grid, lossLayout):
         pwr_edges = np.linspace(np.log10(pwr_min), np.log10(pwr_max), n_pwr+1)
 
 # Left plot: lost locations
-        jsplot = 1     
-        axpol = figLost.add_subplot(nrows, ncols, jsplot, aspect='equal')
+        axpol = figLost.add_subplot(nrows, ncols, 1, aspect='equal')
         axpol.set_title('%s total losses' %spc_lbl, fontsize=fsize, fontweight='bold')
         for jcol, jcomp in enumerate(comp_arr):
             ind = (j_comp == jcomp)
@@ -182,9 +165,8 @@ def plotLost(fbm, r_grid, z_grid, lossLayout):
         addGrids(fbm, axpol)
 
 # For each species overplot 5 pwr angle range
-        jsplot = 2
-        for jcomp in comp_arr:
-            axpol = figLost.add_subplot(nrows, ncols, jsplot, aspect='equal')
+        for jplot, jcomp in enumerate(comp_arr):
+            axpol = figLost.add_subplot(nrows, ncols, jplot+2, aspect='equal')
             axpol.set_title('%s Pwr. losses, Watts' %comp_lbl[jcomp], \
                             fontsize=fsize,fontweight='bold')
             addGrids(fbm, axpol)
@@ -192,12 +174,14 @@ def plotLost(fbm, r_grid, z_grid, lossLayout):
             for jpwr in range(n_pwr-1, -1, -1):
                 p1 = pwr_edges[jpwr]
                 p2 = pwr_edges[jpwr+1]
-                ind = ind1 & (pwr_lost>  np.float_power(10,p1)) & (pwr_lost <= np.float_power(10,p2))
+                ind = ind1 & (pwr_lost > np.float_power(10, p1)) & (pwr_lost <= np.float_power(10, p2))
                 axpol.plot(Rj[ind], zj[ind], '%so' %colors[jpwr], \
                            label='%s < Pwr < %s' %(round(np.float_power(10, p1), 2), \
                                                    round(np.float_power(10, p2), 2)), markersize=sizes[jpwr])
             axpol.legend(loc=2, numpoints=1, prop={'size': 10})
-            jsplot += 1
+        toolbar = NavigationToolbar(canvasLost)
+        tabLayout.addWidget(canvasLost)
+        tabLayout.addWidget(toolbar)
 
 
 def plotBirth(fbm, r_grid, z_grid, birthLayout):
@@ -276,17 +260,16 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
     for jsrc in src_arr:
         dep_matrix[jsrc] = {}
         for jcomp in comp_arr:
-            ind = (j_nbi == jsrc) & (j_comp == jcomp)
+            (ind, ) = np.where((j_nbi == jsrc) & (j_comp == jcomp))
             dep_matrix[jsrc][jcomp], Redge, zedge = \
             np.histogram2d(Rj[ind], zj[ind], bins=[nR, nZ], \
-            range=[[Rmin, Rmax], [zmin, zmax]], weights = weight[ind])
+            range=[[Rmin, Rmax], [zmin, zmax]], weights=weight[ind])
 
     res_R = {}
     for jsrc in src_arr:
         res_R[jsrc] = {}
         for jcomp in comp_arr:
-            dep_R = np.sum(dep_matrix[jsrc][jcomp], axis=1) # z-sum
-            res_R[jsrc][jcomp] = np.cumsum(dep_R)
+            res_R[jsrc][jcomp] = np.cumsum(np.sum(dep_matrix[jsrc][jcomp], axis=1))
             logger.info('Deposited particles for source %d, component %s: %10.3e/s', jsrc, jcomp, res_R[jsrc][jcomp][-1])
 
 #------
@@ -329,21 +312,20 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
         figBirth.text(0.5, 0.95, '%s, t =%6.3f s, top view' %(runid, t_birth), ha='center')
         figBirth.text(0.5, 0.55, 'Poloidal section'  , ha='center')
 
-        jsplot = 1
 # Overplot 3 species mix
 # Above view
-        axtop = figBirth.add_subplot(nrows, ncols, jsplot, aspect='equal')
+        axtop = figBirth.add_subplot(nrows, ncols, 1, aspect='equal')
         axtop.set_title('All energy components', fontsize=fsize)
 
 # Poloidal section
-        axpol = figBirth.add_subplot(nrows, ncols, jsplot+ncols, aspect='equal')
+        axpol = figBirth.add_subplot(nrows, ncols, ncols+1, aspect='equal')
         axpol.set_title('All energy components', fontsize=fsize)
 
 # Birth locations
-        for jcol, jcomp in enumerate(comp_arr):
-            ind = (j_comp == jcomp) & (j_nbi == jsrc)
-            axtop.plot(xtop[ind], ytop[ind], '%so' %colors[jcol], label=comp_lbl[jcol])
-            axpol.plot(Rj[ind]  , zj[ind]  , '%so' %colors[jcol], label=comp_lbl[jcol])
+        for jplot, jcomp in enumerate(comp_arr):
+            (ind, ) = np.where((j_comp == jcomp) & (j_nbi == jsrc))
+            axtop.plot(xtop[ind], ytop[ind], '%so' %colors[jplot], label=comp_lbl[jplot])
+            axpol.plot(Rj[ind]  , zj[ind]  , '%so' %colors[jplot], label=comp_lbl[jplot])
 
         axtop.legend(loc=2, numpoints=1, prop={'size': 8})
         axpol.legend(loc=2, numpoints=1, prop={'size': 8})
@@ -363,19 +345,11 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
 
 # For each species overplot 5 pitch angle range
 
-        jsplot = 2
-        for jcomp in comp_arr:
-            axtop = figBirth.add_subplot(nrows, ncols, jsplot      , aspect='equal')
-            axpol = figBirth.add_subplot(nrows, ncols, jsplot+ncols, aspect='equal')
-
+        for jplot, jcomp in enumerate(comp_arr):
+            axtop = figBirth.add_subplot(nrows, ncols, jplot+2      , aspect='equal')
+            axpol = figBirth.add_subplot(nrows, ncols, jplot+2+ncols, aspect='equal')
             axtop.set_title('%s energy' %jcomp, fontsize=fsize)
             axpol.set_title('%s energy' %jcomp, fontsize=fsize)
-
-            axpol.set_xlabel(Rlbl, fontsize=fsize)
-            axpol.set_ylabel(zlbl, fontsize=fsize)
-            axpol.set_xlim(xpol_lim)
-            axpol.set_ylim(ypol_lim)
-
             ind1 = (j_comp == jcomp) & (j_nbi == jsrc)
             for jpitch in range(n_pitch):
                 p1 = pitch_edges[jpitch]
@@ -393,12 +367,10 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
             axtop.plot(Rtor_in *cosp, Rtor_in *sinp, 'r-')
             axtop.plot(Rtor_out*cosp, Rtor_out*sinp, 'r-')
             axtop.plot(Rmaj*cosp, Rmaj*sinp, 'r--')
-            jsplot += 1
 
         toolbar = NavigationToolbar(canvasBirth)
         qbirth_layout.addWidget(canvasBirth)
         qbirth_layout.addWidget(toolbar)
-        canvasBirth.draw()
 
 #-------------------------
 # Deposition & attenuation
@@ -409,40 +381,32 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
         canvasDep = FigureCanvas(figDep)
         figDep.text(0.33, 0.95, '%s, t =%6.3f s' %(runid, t_birth), ha='center')
         figDep.subplots_adjust(left=0.05, bottom=0.1, right=0.98, top=0.92)
-        jsplot = 1
-        for jcol, jcomp in enumerate(comp_arr):
+        for jplot, jcomp in enumerate(comp_arr):
             zgrid = dep_matrix[jsrc][jcomp]
             ind = np.where(zgrid == 0)
             zgrid[ind] = None
-            axpol = figDep.add_subplot(1, n_comp, jsplot, aspect='equal')
-            axpol.set_title('%s energy' %comp_lbl[jcol], fontsize=fsize)
-            axpol.set_xlim(xpol_lim)
-            axpol.set_ylim(ypol_lim)
+            axpol = figDep.add_subplot(1, n_comp, jplot+1, aspect='equal')
+            axpol.set_title('%s energy' %comp_lbl[jplot], fontsize=fsize)
             ctr = axpol.contourf(r_grid.T, z_grid.T, zgrid)
             figDep.colorbar(ctr, aspect=20)
             addGrids(fbm, axpol)
-            jsplot += 1
 
         canvasDep.setFixedHeight(550)
         toolbar = NavigationToolbar(canvasDep)
         qdep_layout.addWidget(canvasDep)
         qdep_layout.addWidget(toolbar)
-        canvasDep.draw()
 
 # Attenutation
         figAtt = Figure()
         canvasAtt = FigureCanvas(figAtt)
         figAtt.subplots_adjust(left=0.05, bottom=0.2, right=0.98, top=0.9)
-        jsplot = 1
-        for jcol, jcomp in enumerate(comp_arr):
-            axatt = figAtt.add_subplot(1, n_comp, jsplot)
-            axatt.set_title('%s energy' %comp_lbl[jcol], fontsize=fsize)
+        for jplot, jcomp in enumerate(comp_arr):
+            axatt = figAtt.add_subplot(1, n_comp, jplot+1)
+            axatt.set_title('%s energy' %comp_lbl[jplot], fontsize=fsize)
             axatt.set_xlabel('R [cm]', fontsize=fsize)
             axatt.set_ylabel('NBI attenuation', fontsize=fsize)
             axatt.plot(R_grid, res_R[jsrc][jcomp])
-            jsplot += 1
 
         toolbar = NavigationToolbar(canvasAtt)
         qdep_layout.addWidget(canvasAtt)
         qdep_layout.addWidget(toolbar)
-        canvasAtt.draw()

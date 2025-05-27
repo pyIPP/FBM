@@ -11,7 +11,7 @@ import matplotlib as mpl
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-from PyQt5.QtWidgets import QMainWindow, QWidget, QApplication, QGridLayout, QMenu, QAction, QLabel, QPushButton, QLineEdit, QCheckBox, QSpinBox, QDoubleSpinBox, QFileDialog, QRadioButton, QButtonGroup, QTabWidget, QVBoxLayout, QHBoxLayout
+from PyQt5.QtWidgets import QMainWindow, QWidget, QApplication, QGridLayout, QMenu, QAction, QLabel, QCheckBox, QDoubleSpinBox, QFileDialog, QRadioButton, QButtonGroup, QTabWidget, QVBoxLayout, QHBoxLayout
 from PyQt5.QtCore import Qt, QRect, QLocale
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
@@ -19,8 +19,6 @@ try:
     import aug_sfutils as sf
     gc_d = sf.getgc()
     m2cm = 100.
-    xpol_lim = (90, 230)
-    ypol_lim = (-125, 125)
 except:
     pass
 import read_ac, config
@@ -98,17 +96,7 @@ class FBM(QMainWindow):
         qtabs.addTab(qdist, '2D dist')
 
 # Initial plot: vessel components
-        figDist = Figure()
-        canvasDist = FigureCanvas(figDist)
-        axDist = figDist.add_subplot(111, aspect='equal')
-        axDist.set_xlabel('R [cm]')
-        axDist.set_ylabel('Z [cm]')
-# Plot vessel even before reading FBM file
-        if 'gc_d' in globals():
-            for gc in gc_d.values():
-                axDist.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
-        canvasDist.draw()
-        self.distLayout.addWidget(canvasDist)
+        self.plotDistribution(self.distLayout)
 
 #-----------------
 # Trapped particle tab
@@ -125,7 +113,7 @@ class FBM(QMainWindow):
         qtabs.addTab(qneut, 'Neutrons')
         neut_right_widget = QWidget()
         neut_left_widget  = QWidget()
-        neut_left_layout  = QHBoxLayout()
+        neut_left_layout  = QVBoxLayout()
         neut_right_layout = QVBoxLayout()
         neut_left_widget.setLayout(neut_left_layout)
         neut_right_widget.setLayout(neut_right_layout)
@@ -136,8 +124,12 @@ class FBM(QMainWindow):
         neutCanvas2 = FigureCanvas(self.figNeut2)
         axneut1 = self.figNeut1.add_subplot(111, aspect='equal')
         axneut2 = self.figNeut2.add_subplot(111, aspect='equal')
+        toolbar1 = NavigationToolbar(neutCanvas1)
+        toolbar2 = NavigationToolbar(neutCanvas2)
         neut_left_layout.addWidget(neutCanvas1)
+        neut_left_layout.addWidget(toolbar1)
         neut_right_layout.addWidget(neutCanvas2)
+        neut_right_layout.addWidget(toolbar2)
         neutLayout.addWidget(neut_left_widget)
         neutLayout.addWidget(neut_right_widget)
 
@@ -180,7 +172,6 @@ class FBM(QMainWindow):
         header_grid.addWidget(menubar, 0, 0, 1, 10)
 
         self.setStyleSheet("QLabel { width: 4 }")
-        self.setStyleSheet("QLineEdit { width: 4 }")
         self.setGeometry(10, 10, xwin, ywin)
         self.setWindowTitle('FBM viewer')
         self.show()
@@ -216,7 +207,7 @@ class FBM(QMainWindow):
         jtclose = np.argmin(tdist)
         self.cv = {}
         for lbl in sigs:
-            if lbl in cv_all.keys():
+            if lbl in cv_all:
                 self.cv[lbl] = cv_all[lbl][jtclose]
 
         btneut = self.cv['BTNT2_DD']
@@ -230,7 +221,7 @@ class FBM(QMainWindow):
 #--------
 # Plots
 #--------
-  
+
         nR = 100
         nZ = 130
         self.r_grid, self.z_grid = np.meshgrid(
@@ -271,14 +262,18 @@ class FBM(QMainWindow):
         distTabs.setStyleSheet("QTabBar::tab { width: 120 }")
         distLayout.addWidget(distTabs)
         self.figDist = {}
-        for spc_lbl, f_in in self.fbmr.int_en_pit.items():
+        if hasattr(self, 'fbmr'):
+            mydic = self.fbmr.int_en_pit
+        else:
+            mydic = {'D_NBI': None}
+        for spc_lbl, f_in in mydic.items():
             qspec = QWidget()
             distTabs.addTab(qspec, spc_lbl)
             tabLayout = QHBoxLayout()
             qspec.setLayout(tabLayout)
             dist_right_widget = QWidget()
             dist_left_widget  = QWidget()
-            dist_left_layout  = QHBoxLayout()
+            dist_left_layout  = QVBoxLayout()
             dist_right_layout = QVBoxLayout()
             dist_right1_widget = QWidget()
             dist_right2_widget = QWidget()
@@ -287,15 +282,11 @@ class FBM(QMainWindow):
             dist_right_widget.setLayout(dist_right_layout)
 
             self.figDist[spc_lbl] = Figure()
+            self.figDist[spc_lbl].subplots_adjust(left=0.05, bottom=0.05, right=0.97, top=0.92)
             canvasDist = FigureCanvas(self.figDist[spc_lbl])
-            axDist = self.figDist[spc_lbl].add_subplot(111, aspect='equal')
-            axDist.set_xlabel('R [cm]')
-            axDist.set_ylabel('Z [cm]')
-# Plot vessel even before reading FBM file
-            if 'gc_d' in globals():
-                for gc in gc_d.values():
-                    axDist.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
+            toolbar = NavigationToolbar(canvasDist)
             dist_left_layout.addWidget(canvasDist)
+            dist_left_layout.addWidget(toolbar)
             tabLayout.addWidget(dist_left_widget)
             tabLayout.addWidget(dist_right_widget)
 # Right column
@@ -329,6 +320,7 @@ class FBM(QMainWindow):
                 self.butt_d['integral'].addButton(but)
                 self.butt_d['integral'].setId(but, jcol)
                 buttons_layout.addWidget(but)
+            buttons_layout.addStretch()
             energy_widget = QWidget()
             energy_layout = QHBoxLayout()
             Elbl = QLabel('Emax [keV]')
@@ -338,15 +330,16 @@ class FBM(QMainWindow):
             self.butt_d['Emax'].setRange(0., 1000.)
             energy_widget.setLayout(energy_layout)
             energy_layout.addWidget(Elbl)
-            energy_layout.addWidget(self.butt_d['Emax'])
+            energy_layout.addWidget(self.butt_d['Emax'], alignment=Qt.AlignLeft)
+            energy_layout.addStretch()
 
             log_widget = QWidget()
             log_layout = QHBoxLayout()
             log_widget.setLayout(log_layout)
             self.butt_d['logScale'] = QCheckBox('Log scale')
             self.butt_d['logScale'].setChecked(True)
-            logMinLbl = QLabel('f_log_min')
-            logMaxLbl = QLabel('f_log_max')
+            logMinLbl = QLabel('    f_log_min')
+            logMaxLbl = QLabel('    f_log_max')
             self.butt_d['logMin'] = QDoubleSpinBox()
             self.butt_d['logMax'] = QDoubleSpinBox()
             self.butt_d['logMin'].setValue(4.5)
@@ -357,8 +350,12 @@ class FBM(QMainWindow):
             self.butt_d['logMax'].setRange(-1., 20.)
             for lbl in ('Emax', 'logMin', 'logMax'):
                 self.butt_d[lbl].setFixedWidth(textWidth)
-            for but in (self.butt_d['logScale'], logMinLbl, self.butt_d['logMin'], logMaxLbl, self.butt_d['logMax']):
-                log_layout.addWidget(but)
+            log_layout.addWidget(self.butt_d['logScale'])
+            log_layout.addWidget(logMinLbl)
+            log_layout.addWidget(self.butt_d['logMin'])
+            log_layout.addWidget(logMaxLbl)
+            log_layout.addWidget(self.butt_d['logMax'])
+            log_layout.addStretch()
 
             for layout in dist_right_layout, dist_right1_layout, dist_right2_layout, dist_right3_layout:
                 layout.setContentsMargins(0, 0, 0, 0)
@@ -370,20 +367,27 @@ class FBM(QMainWindow):
 # Bdens
             axBdens = figBdens.add_subplot(111)
             figBdens.subplots_adjust(left=0.1, bottom=0.2, right=0.97, top=0.95)
-            axBdens.plot(self.fbmr.rho_grid, self.fbmr.bdens[spc_lbl], 'r-', label='From FBM', linewidth=2.5)
-            axBdens.plot(self.cv['X'], self.cv[bdens_d[spc_lbl]], 'g-', label='From CDF', linewidth=2.5)
+            if f_in is not None:
+                axBdens.plot(self.fbmr.rho_grid, self.fbmr.bdens[spc_lbl], 'r-', label='From FBM', linewidth=2.5)
+                axBdens.plot(self.cv['X'], self.cv[bdens_d[spc_lbl]], 'g-', label='From CDF', linewidth=2.5)
+                axBdens.set_ylabel(r'%s [1/cm$^3$]' %bdens_d[spc_lbl], fontsize=fsize)
             axBdens.set_xlabel(r'$\rho_{tor}$', fontsize=fsize)
-            axBdens.set_ylabel(r'%s [1/cm$^3$]' %bdens_d[spc_lbl], fontsize=fsize)
             axBdens.set_xlim([0, 1])
             axBdens.set_ylim(ymin = 0)
             axBdens.legend()
-            canvasBdens.draw()
 
 # FBM integrated over E, mu
-            ax = contourPlotRZ(self.fbmr, self.figDist[spc_lbl], self.r_grid, self.z_grid, f_in, title=r'2D distribution, $\int\int$ dE dp.a.')
-            self.cell_mark, = ax.plot([], [], 'ro')
+            if f_in is None:
+                if 'gc_d' in globals():
+                    ax = self.figDist[spc_lbl].add_subplot(111, aspect='equal')
+                    for gc in gc_d.values():
+                        ax.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
+            else:
+                ax = contourPlotRZ(self.fbmr, self.figDist[spc_lbl], self.r_grid, self.z_grid, f_in, title=r'2D distribution, $\int\int$ dE dp.a.')
+                self.cell_mark, = ax.plot([], [], 'ro')
             self.currentSpecies = spc_lbl
-            self.figDist[spc_lbl].canvas.mpl_connect('button_press_event', self.my_call)
+            if f_in is not None:
+                self.figDist[spc_lbl].canvas.mpl_connect('button_press_event', self.my_call)
 
 # Cell canvas in dist_right2_widget
 
@@ -398,9 +402,8 @@ class FBM(QMainWindow):
             dist_right3_layout.addWidget(canvasCell)
             dist_right3_layout.addWidget(toolbar)
             canvasCell.setFixedHeight(450)
-            toolbar.setFixedHeight(50)
-            self.currentSpecies = spc_lbl
-            self.plot_fbm_cell(0)
+            if f_in is not None:
+                self.plot_fbm_cell(0)
 
 
     def plot_fbm_cell(self, jcell):
@@ -433,7 +436,6 @@ class FBM(QMainWindow):
                 %(self.fbmr.x2d[jcell], np.degrees(self.fbmr.th2d[jcell]), self.fbmr.time)
             zarr_lin = self.fbmr.fdist[spc_lbl][jcell]
         self.figDist[spc_lbl].canvas.draw() # update canvas for the red marker
-        self.figCell.canvas.draw() # Update red marker
 
         zmax_lin = np.max(zarr_lin[~np.isnan(zarr_lin)])
         zmin_lin = 1e-8*zmax_lin

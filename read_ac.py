@@ -24,9 +24,9 @@ class READ_FBM:
             fbm_lbl = 'FBM_PTCL'
         list_read = ['AVGTIM', 'BMVOL', 'EFBM', 'EFBMB', 'XXKSID', fbm_lbl, 'RSURF1', 'YSURF1',
             'RMC', 'YMC', 'XZBEAMS', 'ABEAMS', 'NLFPROD', 'RAXIS', 'YAXIS', 'BDENS2', 'BDENS2',
-            'RLIM_PTS', 'YLIM_PTS', 'GOOSE_LOST','RMJION_LOST', 'SPECIES_LOST','WGHT_LOST',
-            'XKSID_LOST', 'YNBIEN_LOST','YNBSCE_LOST','YYION_LOST','YZE_LOST',
-            'GTIME_LOST','GTIME1_LOST','GTIME2_LOST']
+            'RLIM_PTS', 'YLIM_PTS', 'GOOSE_LOST', 'RMJION_LOST', 'SPECIES_LOST', 'WGHT_LOST',
+            'XKSID_LOST', 'YNBIEN_LOST', 'YNBSCE_LOST', 'YYION_LOST', 'YZE_LOST',
+            'GTIME_LOST', 'GTIME1_LOST', 'GTIME2_LOST']
 
         fbm_d = parse_ac.parse_ac(f_ac, list_read=list_read)
 
@@ -128,18 +128,18 @@ class READ_FBM:
         self.zbar = []
         for jrho in range(n_zones):
             for ythe in thb_grid2d[jrho]:
-                ithe = np.min(np.where(th_surf > ythe))
-                ind = [ithe - 1, ithe ]
+                ithe = np.searchsorted(th_surf, ythe)
+                ind = [ithe - 1, ithe]
                 th_ref = th_surf[ind]
-                rbar = np.zeros(2)
-                zbar = np.zeros(2)
-                rbar[0] = np.interp(ythe, th_ref, self.r_surf[jrho  , ind])
-                zbar[0] = np.interp(ythe, th_ref, self.z_surf[jrho  , ind])
-                rbar[1] = np.interp(ythe, th_ref, self.r_surf[jrho+1, ind])
-                zbar[1] = np.interp(ythe, th_ref, self.z_surf[jrho+1, ind])
+                rbar = np.array([
+                    np.interp(ythe, th_ref, self.r_surf[jrho  , ind]),
+                    np.interp(ythe, th_ref, self.r_surf[jrho+1, ind])])
+                zbar = np.array([
+                    np.interp(ythe, th_ref, self.z_surf[jrho  , ind]),
+                    np.interp(ythe, th_ref, self.z_surf[jrho+1, ind])])
                 self.rbar.append(rbar)
                 self.zbar.append(zbar)
-               
+
 #----------------------------------------------
 # Read distribution, energy, pitch data from AC
 #----------------------------------------------
@@ -167,7 +167,7 @@ class READ_FBM:
         self.ynbscelost= {}
         self.gooselost= {}
         self.ta = fbm_d['GTIME1_LOST']
-        self.tb= fbm_d['GTIME2_LOST']
+        self.tb = fbm_d['GTIME2_LOST']
 
         n_spec = len(fbm_d['ABEAMS' ])
         self.species = []
@@ -204,7 +204,7 @@ class READ_FBM:
             self.e_d [spc_lbl] = fbm_d['EFBM' ][:, jspec]
             self.eb_d[spc_lbl] = fbm_d['EFBMB'][:, jspec]
             self.a_d[spc_lbl] = np.linspace(-1, 1, num=n_pit)
-            (indx, )= np.where(jspec+1==fbm_d['SPECIES_LOST'])
+            (indx, ) = np.where(fbm_d['SPECIES_LOST'] == jspec + 1)
             self.gtimelost[spc_lbl]  = fbm_d['GTIME_LOST'][indx]
             self.wghtlost[spc_lbl]   = fbm_d['WGHT_LOST'][indx]
             self.rmjionlost[spc_lbl] = fbm_d['RMJION_LOST'][indx]
@@ -224,7 +224,6 @@ class READ_FBM:
             fbm_trap[mask] = fbm[mask]
 
 # Integrals
-
             dE  = np.diff(self.eb_d[spc_lbl])
             dpa = np.repeat(self.a_d[spc_lbl][1] - self.a_d[spc_lbl][0], n_pit) # assuming regular p.a, grid
             dpa_dE = np.outer(dpa, dE)
@@ -234,7 +233,6 @@ class READ_FBM:
 
             self.dens_zone[spc_lbl] = np.zeros((n_zones, n_pit, n_E))
             self.trap_zone[spc_lbl] = np.zeros((n_zones, n_pit, n_E))
-
             self.dens_vol[spc_lbl] = np.tensordot(fbm     , self.bmvol, axes=(0, 0))/np.sum(self.bmvol)
             self.trap_vol[spc_lbl] = np.tensordot(fbm_trap, self.bmvol, axes=(0, 0))/np.sum(self.bmvol)
             vol_zone = np.zeros(n_zones)
