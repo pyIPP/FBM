@@ -238,6 +238,8 @@ class FBM(QMainWindow):
         contourPlotRZ(self.fbmr, self.figNeut1, self.r_grid, self.z_grid, f_in, title='Beam-target neutrons')
         f_in = bbneut
         contourPlotRZ(self.fbmr, self.figNeut2, self.r_grid, self.z_grid, f_in, title='Beam-beam neutrons')
+        self.figNeut1.canvas.draw()
+        self.figNeut2.canvas.draw()
 
 # Lost particles and power
         plotLost(self.fbmr, self.r_grid, self.z_grid, self.lossLayout)
@@ -366,7 +368,7 @@ class FBM(QMainWindow):
 
 # Bdens
             axBdens = figBdens.add_subplot(111)
-            figBdens.subplots_adjust(left=0.1, bottom=0.2, right=0.97, top=0.95)
+            figBdens.subplots_adjust(left=0.1, bottom=0.25, right=0.97, top=0.95)
             if f_in is not None:
                 axBdens.plot(self.fbmr.rho_grid, self.fbmr.bdens[spc_lbl], 'r-', label='From FBM', linewidth=2.5)
                 axBdens.plot(self.cv['X'], self.cv[bdens_d[spc_lbl]], 'g-', label='From CDF', linewidth=2.5)
