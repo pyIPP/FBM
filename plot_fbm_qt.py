@@ -10,7 +10,6 @@ import numpy as np
 import matplotlib as mpl
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from scipy.interpolate import griddata
 
 from PyQt5.QtWidgets import QMainWindow, QWidget, QApplication, QGridLayout, QMenu, QAction, QLabel, QPushButton, QLineEdit, QCheckBox, QSpinBox, QDoubleSpinBox, QFileDialog, QRadioButton, QButtonGroup, QTabWidget, QVBoxLayout, QHBoxLayout
 from PyQt5.QtGui import QPixmap, QIcon
@@ -49,6 +48,18 @@ lframe_wid = 670
 rframe_wid = 800
 fsize = 12
 
+
+def clear_layout(layout):
+    while layout.count():
+        item = layout.takeAt(0)
+        widget = item.widget()
+        if widget is not None:
+            widget.setParent(None)
+            widget.deleteLater()
+        elif item.layout():  # In case it's a nested layout
+            clear_layout(item.layout())
+
+
 def about():
     webbrowser.open('http://www.aug.ipp.mpg.de/aug/manuals/transp/fbm/plot_fbm.html')
 
@@ -82,111 +93,21 @@ class FBM(QMainWindow):
 #-----------------
 # Distribution TAB
         qdist = QWidget()
-        dist_layout = QHBoxLayout()
-        qdist.setLayout(dist_layout)
+        self.dist_layout = QHBoxLayout()
+        qdist.setLayout(self.dist_layout)
         qtabs.addTab(qdist, '2D dist')
-        dist_right_widget = QWidget()
-        dist_left_widget  = QWidget()
-        dist_left_layout  = QHBoxLayout()
-        dist_right_layout = QVBoxLayout()
-        dist_right1_widget = QWidget()
-        dist_right2_widget = QWidget()
-        dist_right3_widget = QWidget()
-        dist_left_widget.setLayout(dist_left_layout)
-        dist_right_widget.setLayout(dist_right_layout)
 
-        self.figDist = Figure()
-        canvasDist = FigureCanvas(self.figDist)
-        axDist = self.figDist.add_subplot(111, aspect='equal')
+        figDist = Figure()
+        canvasDist = FigureCanvas(figDist)
+        axDist = figDist.add_subplot(111, aspect='equal')
         axDist.set_xlabel('R [cm]')
         axDist.set_ylabel('Z [cm]')
 # Plot vessel even before reading FBM file
         if 'gc_d' in globals():
             for gc in gc_d.values():
                 axDist.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
-        dist_left_layout.addWidget(canvasDist)
-        dist_layout.addWidget(dist_left_widget)
-        dist_layout.addWidget(dist_right_widget)
-# Right column
-        dist_right_layout.addWidget(dist_right1_widget)
-        dist_right_layout.addWidget(dist_right2_widget)
-        dist_right_layout.addWidget(dist_right3_widget)
-
-# Buttons in dist_right1_widget
-        widgetHeight = 25
-        textWidth = 100
-        dist_right1_layout = QVBoxLayout()
-        dist_right2_layout = QVBoxLayout()
-        dist_right3_layout = QVBoxLayout()
-        dist_right1_widget.setLayout(dist_right1_layout)
-        dist_right2_widget.setLayout(dist_right2_layout)
-        dist_right3_widget.setLayout(dist_right3_layout)
-
-        dist_right1_widget.setFixedHeight(5*widgetHeight + 30)
-        dist_right2_widget.setFixedHeight(400)
-        dist_right2_widget.setFixedHeight(500)
-        mouseLbl = QLabel('Right-mouse click on a cell for local FBM plot')
-        self.butt_d = {}
-        self.butt_d['theta'] = QCheckBox('Theta averaged FBM')
-        self.butt_d['vol']   = QCheckBox('Voume averaged FBM')
-        self.butt_d['theta'].setChecked(False)
-        self.butt_d['vol'].setChecked(False)
-
-        energy_widget = QWidget()
-        energy_layout = QHBoxLayout()
-        Elbl = QLabel('Emax [keV]')
-        self.butt_d['Emax'] = QDoubleSpinBox()
-        self.butt_d['Emax'].setValue(100.)
-        self.butt_d['Emax'].setDecimals(1)
-        self.butt_d['Emax'].setRange(0., 1000.)
-        energy_widget.setLayout(energy_layout)
-        energy_layout.addWidget(Elbl)
-        energy_layout.addWidget(self.butt_d['Emax'])
-
-        log_widget = QWidget()
-        log_layout = QHBoxLayout()
-        log_widget.setLayout(log_layout)
-        self.butt_d['logScale'] = QCheckBox('Log scale')
-        self.butt_d['logScale'].setChecked(True)
-        logMinLbl = QLabel('f_log_min')
-        logMaxLbl = QLabel('f_log_max')
-        self.butt_d['logMin'] = QDoubleSpinBox()
-        self.butt_d['logMax'] = QDoubleSpinBox()
-        self.butt_d['logMin'].setValue(4.5)
-        self.butt_d['logMax'].setValue(8.5)
-        self.butt_d['logMin'].setDecimals(2)
-        self.butt_d['logMax'].setDecimals(2)
-        self.butt_d['logMin'].setRange(-1., 20.)
-        self.butt_d['logMax'].setRange(-1., 20.)
-        for lbl in ('Emax', 'logMin', 'logMax'):
-            self.butt_d[lbl].setFixedWidth(textWidth)
-        for but in (self.butt_d['logScale'], logMinLbl, self.butt_d['logMin'], logMaxLbl, self.butt_d['logMax']):
-            log_layout.addWidget(but)
-
-        for layout in dist_right_layout, dist_right1_layout, dist_right2_layout, dist_right3_layout:
-            layout.setContentsMargins(0, 0, 0, 0)
-# BDENS canvas in dist_right2_widget
-
-        self.figBdens = Figure()
-        canvasBdens = FigureCanvas(self.figBdens)
-
-# Cell canvas in dist_right2_widget
-
-        self.figCell = Figure()
-        canvasCell = FigureCanvas(self.figCell)
-        toolbar = NavigationToolbar(canvasCell)
-
-        for wid in mouseLbl, self.butt_d['theta'], self.butt_d['vol']:
-            dist_right1_layout.addWidget(wid)
-            wid.setFixedHeight(widgetHeight)
-        for wid in energy_widget, log_widget:
-            dist_right1_layout.addWidget(wid)
-            wid.setFixedHeight(widgetHeight + 15)
-        dist_right2_layout.addWidget(canvasBdens)
-        dist_right3_layout.addWidget(canvasCell)
-        dist_right3_layout.addWidget(toolbar)
-        canvasCell.setFixedHeight(450)
-        toolbar.setFixedHeight(50)
+        canvasDist.draw()
+        self.dist_layout.addWidget(canvasDist)
 
 #-----------------
 # Trapped particle tab
@@ -326,14 +247,124 @@ class FBM(QMainWindow):
 # Plots
 #--------
 
-        r_grid, z_grid = np.meshgrid(
+        self.r_grid, self.z_grid = np.meshgrid(
         np.linspace(self.fbmr.r2d.min(), self.fbmr.r2d.max(), 100),
         np.linspace(self.fbmr.z2d.min(), self.fbmr.z2d.max(), 100))
 
+        self.plot_dist(self.dist_layout)
+
+# Trapped particle fraction
+        f_in = self.fbmr.int_en_pit_frac_trap[spc_lbl]
+        contourPlotRZ(self.fbmr, self.figTrap1, self.r_grid, self.z_grid, f_in, title='Trapped fast ion fraction')
+
+# Neutron
+        f_in = btneut
+        contourPlotRZ(self.fbmr, self.figNeut1, self.r_grid, self.z_grid, f_in, title='Beam-target neutrons')
+        f_in = bbneut
+        contourPlotRZ(self.fbmr, self.figNeut2, self.r_grid, self.z_grid, f_in, title='Beam-beam neutrons')
+
+
+    def my_call(self, event):
+
+        if event.button in (2, 3):
+            dist2 = (self.fbmr.r2d - event.xdata)**2 + (self.fbmr.z2d - event.ydata)**2
+            jcell = np.argmin(dist2)
+            self.plot_fbm_cell(jcell)
+
+
+    def plot_dist(self, dist_layout):
+
+        clear_layout(dist_layout)
+        spc_lbl = 'D_NBI' # hardcoded for now
+
+        dist_right_widget = QWidget()
+        dist_left_widget  = QWidget()
+        dist_left_layout  = QHBoxLayout()
+        dist_right_layout = QVBoxLayout()
+        dist_right1_widget = QWidget()
+        dist_right2_widget = QWidget()
+        dist_right3_widget = QWidget()
+        dist_left_widget.setLayout(dist_left_layout)
+        dist_right_widget.setLayout(dist_right_layout)
+
+        self.figDist = Figure()
+        canvasDist = FigureCanvas(self.figDist)
+        axDist = self.figDist.add_subplot(111, aspect='equal')
+        axDist.set_xlabel('R [cm]')
+        axDist.set_ylabel('Z [cm]')
+# Plot vessel even before reading FBM file
+        if 'gc_d' in globals():
+            for gc in gc_d.values():
+                axDist.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
+        dist_left_layout.addWidget(canvasDist)
+        dist_layout.addWidget(dist_left_widget)
+        dist_layout.addWidget(dist_right_widget)
+# Right column
+        dist_right_layout.addWidget(dist_right1_widget)
+        dist_right_layout.addWidget(dist_right2_widget)
+        dist_right_layout.addWidget(dist_right3_widget)
+
+# Buttons in dist_right1_widget
+        widgetHeight = 25
+        textWidth = 100
+        dist_right1_layout = QVBoxLayout()
+        dist_right2_layout = QVBoxLayout()
+        dist_right3_layout = QVBoxLayout()
+        dist_right1_widget.setLayout(dist_right1_layout)
+        dist_right2_widget.setLayout(dist_right2_layout)
+        dist_right3_widget.setLayout(dist_right3_layout)
+
+        dist_right1_widget.setFixedHeight(5*widgetHeight + 30)
+        dist_right2_widget.setFixedHeight(400)
+        dist_right2_widget.setFixedHeight(500)
+        mouseLbl = QLabel('Right-mouse click on a cell for local FBM plot')
+        self.butt_d = {}
+        self.butt_d['theta'] = QCheckBox('Theta averaged FBM')
+        self.butt_d['vol']   = QCheckBox('Voume averaged FBM')
+        self.butt_d['theta'].setChecked(False)
+        self.butt_d['vol'].setChecked(False)
+
+        energy_widget = QWidget()
+        energy_layout = QHBoxLayout()
+        Elbl = QLabel('Emax [keV]')
+        self.butt_d['Emax'] = QDoubleSpinBox()
+        self.butt_d['Emax'].setValue(100.)
+        self.butt_d['Emax'].setDecimals(1)
+        self.butt_d['Emax'].setRange(0., 1000.)
+        energy_widget.setLayout(energy_layout)
+        energy_layout.addWidget(Elbl)
+        energy_layout.addWidget(self.butt_d['Emax'])
+
+        log_widget = QWidget()
+        log_layout = QHBoxLayout()
+        log_widget.setLayout(log_layout)
+        self.butt_d['logScale'] = QCheckBox('Log scale')
+        self.butt_d['logScale'].setChecked(True)
+        logMinLbl = QLabel('f_log_min')
+        logMaxLbl = QLabel('f_log_max')
+        self.butt_d['logMin'] = QDoubleSpinBox()
+        self.butt_d['logMax'] = QDoubleSpinBox()
+        self.butt_d['logMin'].setValue(4.5)
+        self.butt_d['logMax'].setValue(8.5)
+        self.butt_d['logMin'].setDecimals(2)
+        self.butt_d['logMax'].setDecimals(2)
+        self.butt_d['logMin'].setRange(-1., 20.)
+        self.butt_d['logMax'].setRange(-1., 20.)
+        for lbl in ('Emax', 'logMin', 'logMax'):
+            self.butt_d[lbl].setFixedWidth(textWidth)
+        for but in (self.butt_d['logScale'], logMinLbl, self.butt_d['logMin'], logMaxLbl, self.butt_d['logMax']):
+            log_layout.addWidget(but)
+
+        for layout in dist_right_layout, dist_right1_layout, dist_right2_layout, dist_right3_layout:
+            layout.setContentsMargins(0, 0, 0, 0)
+# BDENS canvas in dist_right2_widget
+
+        self.figBdens = Figure()
+        canvasBdens = FigureCanvas(self.figBdens)
+
 # Bdens
-        for spc_lbl in self.species:
-            self.figBdens.clf()
-            axBdens = self.figBdens.add_subplot(111)
+        self.figBdens.clf()
+        axBdens = self.figBdens.add_subplot(111)
         self.figBdens.subplots_adjust(left=0.1, bottom=0.2, right=0.97, top=0.95)
         axBdens.plot(self.fbmr.rho_grid, self.fbmr.bdens[spc_lbl], 'r-', label='From FBM', linewidth=2.5)
         axBdens.plot(self.cv['X'], self.cv[bdens_d[spc_lbl]], 'g-', label='From CDF', linewidth=2.5)
@@ -346,65 +377,27 @@ class FBM(QMainWindow):
 
 # FBM integrated over E, mu
         f_in = self.fbmr.int_en_pit[spc_lbl]
-        ax = contourPlotRZ(self.fbmr, self.figDist, r_grid, z_grid, f_in, title=r'2D distribution, $\int\int$ dE dp.a.')
+        ax = contourPlotRZ(self.fbmr, self.figDist, self.r_grid, self.z_grid, f_in, title=r'2D distribution, $\int\int$ dE dp.a.')
         self.cell_mark, = ax.plot([], [], 'ro')
         self.figDist.canvas.mpl_connect('button_press_event', self.my_call)
 
-# Trapped particle fraction
-        f_in = self.fbmr.int_en_pit_frac_trap[spc_lbl]
-        contourPlotRZ(self.fbmr, self.figTrap1, r_grid, z_grid, f_in, title='Trapped fast ion fraction')
+# Cell canvas in dist_right2_widget
 
-# Neutron
-        f_in = btneut
-        self.contourPlotRZ(self.fbmr, self.figNeut1, r_grid, z_grid, f_in, title='Beam-target neutrons')
-        f_in = bbneut
-        contourPlotRZ(self.fbmr, self.figNeut2, r_grid, z_grid, f_in, title='Beam-beam neutrons')
+        self.figCell = Figure()
+        canvasCell = FigureCanvas(self.figCell)
+        toolbar = NavigationToolbar(canvasCell)
 
-
-    def my_call(self, event):
-
-        if event.button in (2, 3):
-            dist2 = (self.fbmr.r2d - event.xdata)**2 + (self.fbmr.z2d - event.ydata)**2
-            jcell = np.argmin(dist2)
-            self.plot_fbm_cell(jcell)
-
-
-    def contourPlotRZ(self, fbmr, fig, r_grid, z_grid, f_in, title=''):
-
-        fbmfile  = fbmr.fileName.split('/')[-1]
-        runid    = fbmfile[:8]
-        title += ', Run %s, t =%6.3f s' %(runid, fbmr.time)
-        fig.clf()
-        ax = fig.add_subplot(111, aspect='equal')
-        fig.text(0.5, 0.95, title, ha='center')
-        if 'gc_d' in globals():
-            for gc in gc_d.values():
-                ax.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
-        for irho in range(fbmr.r_surf.shape[0]):
-            ax.plot(fbmr.r_surf[irho, :], fbmr.z_surf[irho, :], 'r-', linewidth=0.5)
-        for jbar, myr in enumerate(fbmr.rbar):
-            ax.plot(myr, fbmr.zbar[jbar], 'r-')
-        f_grid = griddata((fbmr.r2d, fbmr.z2d), f_in, (r_grid, z_grid), method='cubic')
-        plot2d = ax.contourf(r_grid, z_grid, f_grid, levels=50, cmap='viridis')
-        fig.colorbar(plot2d, aspect=20)
-        ax.set_xlabel('R [cm]')
-        ax.set_ylabel('Z [cm]')
-# Draw limiter, set plot boundaries
-        xext =  (fbmr.rlim_pts.min() + fbmr.rlim_pts.max())*0.025
-        yext = (-fbmr.ylim_pts.min() + fbmr.ylim_pts.max())*0.025
-        xpol_lim=np.array ([fbmr.rlim_pts.min() - xext, fbmr.rlim_pts.max() + xext])
-        ypol_lim=np.array ([fbmr.ylim_pts.min() - yext, fbmr.ylim_pts.max() + yext])
-        xpol_lim=np.round(xpol_lim).astype(int)
-        ypol_lim=np.round(ypol_lim).astype(int)
-        rlin=fbmr.rlim_pts
-        zlin=fbmr.ylim_pts
-        ax.set_xlim(xpol_lim)
-        ax.set_ylim(ypol_lim)
-        ax.plot(rlin, zlin, 'g-', linewidth=2.5)
-        canvas = fig.canvas
-        canvas.draw()
-        return ax
-
+        for wid in mouseLbl, self.butt_d['theta'], self.butt_d['vol']:
+            dist_right1_layout.addWidget(wid)
+            wid.setFixedHeight(widgetHeight)
+        for wid in energy_widget, log_widget:
+            dist_right1_layout.addWidget(wid)
+            wid.setFixedHeight(widgetHeight + 15)
+        dist_right2_layout.addWidget(canvasBdens)
+        dist_right3_layout.addWidget(canvasCell)
+        dist_right3_layout.addWidget(toolbar)
+        canvasCell.setFixedHeight(450)
+        toolbar.setFixedHeight(50)
 
     def plot_fbm_cell(self, jcell, spc_lbl='D_NBI'):
 
