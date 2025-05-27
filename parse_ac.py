@@ -1,7 +1,5 @@
-import time
 import numpy as np
 import b64conv
-
 
 def parse_ac(f_ac, list_read=None, list_no=None):
 
@@ -14,7 +12,6 @@ def parse_ac(f_ac, list_read=None, list_no=None):
     ac_d = {}
 
     nlin = len(lines)
-    print('#lines = %d' %nlin)
 
     tmp = lines[0].split()
     ac_d['runid']  = tmp[0]
@@ -99,7 +96,7 @@ def parse_ac(f_ac, list_read=None, list_no=None):
 
 if __name__ == '__main__':
 
-    import os, config
+    import os, config, time
     runid = '29783A01'
 
     shot = runid[:-3]

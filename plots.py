@@ -7,6 +7,8 @@ from scipy.interpolate import griddata
 from scipy.io import netcdf_file
 import numpy as np
 
+logger = logging.getLogger('FBM.plots')
+
 try:
     import aug_sfutils as sf
     gc_d = sf.getgc()
@@ -143,7 +145,7 @@ def plotLost(fbm, r_grid, z_grid, lossLayout):
         Elost = np.array(fbm.yzelost[spc_lbl])
         j_nbi = np.array(fbm.ynbscelost[spc_lbl]).astype(int)
         n_lost = len(Rj)
-        print('# of MC particles lost: %d' %n_lost)    
+        logger.info('# of MC particles lost: %d', n_lost)    
         if n_lost == 0:
             continue
         j_comp     = np.zeros(n_lost, dtype=np.int32)
@@ -159,17 +161,14 @@ def plotLost(fbm, r_grid, z_grid, lossLayout):
         n_comp = len(comp_arr)
         ncols = n_comp + 1
 
-        pwr_lost_tot = 0.0
         pwr_lost = np.zeros(n_lost)
-        il = 0
-        while il < n_lost: 
+        for il in range(n_lost): 
             pwr_lost[il] = np.array(weight[il]*Elost[il]/(tbm2 - tbm1)*1.6021766*1.e-19)
-            pwr_lost_tot += pwr_lost[il] 
-            il += 1
+        pwr_lost_tot = np.sum(pwr_lost)
 
         pwr_min = np.min(pwr_lost[np.nonzero(pwr_lost)])
         pwr_max = np.max(pwr_lost)
-        print('%s Total power lost, [Watts] ' %spc_lbl, pwr_lost_tot)
+        logger.info('%s Total power lost, [Watts] %13.6e', spc_lbl, pwr_lost_tot)
         pwr_edges = np.linspace(np.log10(pwr_min), np.log10(pwr_max), n_pwr+1)
 
 # Left plot: lost locations
@@ -204,7 +203,6 @@ def plotLost(fbm, r_grid, z_grid, lossLayout):
 def plotBirth(fbm, r_grid, z_grid, birthLayout):
 
     clear_layout(birthLayout)
-    print(r_grid.shape)
     nZ, nR = r_grid.shape
     fbmdir, fbmfile  = os.path.split(fbm.fileName)
     tmp = fbmfile.split('.')
@@ -213,7 +211,7 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
     birth_file =  '%s/%s_birth.cdf%s' %(fbmdir, runid, t_id)
 
     if not os.path.isfile(birth_file):
-        print('Error %s not found' %birth_file)
+        logger.error('Error: file %s not found', birth_file)
         return
     
     ntheta = 101
@@ -231,8 +229,7 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
 
     cv = netcdf_file(birth_file, 'r', mmap=False).variables
 
-    print('PLOT_BIRTH')
-    print(birth_file)
+    logger.info('Reading %s', birth_file)
 
     mcl = cv['mclabel'].data
     mc_label = b''.join(mcl[0]).decode('utf-8').strip()
@@ -259,10 +256,8 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
     xtop = Rj*np.cos(phi_dep)
     ytop = Rj*np.sin(phi_dep)
     n_birth = len(Rj)
-    print('# of MC particles: %d' %n_birth)
+    logger.info('# of MC particles: %d', n_birth)
     src_arr = np.unique(j_nbi)
-    
-    print('Sources: ', src_arr)
 
     j_comp = np.zeros(n_birth, dtype=np.int32)
     ind_nbi = {}
@@ -273,8 +268,7 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
         ind_nbi[jsrc] = index
  
     comp_arr = np.unique(j_comp)
-    print('Energy components', comp_arr)
-    comp_lbl = {1: 'Full', 2: ' Half', 3: 'Third'}
+    comp_lbl = ('Full', ' Half', 'Third')
     n_src  = len(src_arr)
     n_comp = len(comp_arr)
 
@@ -293,10 +287,7 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
         for jcomp in comp_arr:
             dep_R = np.sum(dep_matrix[jsrc][jcomp], axis=1) # z-sum
             res_R[jsrc][jcomp] = np.cumsum(dep_R)
-            print('Deposited particles for source %d, component %s: %10.3e/s' %(jsrc, jcomp, res_R[jsrc][jcomp][-1]) )
-
-# NBI geometry for plots
-    print('RUNID = %s' %runid)
+            logger.info('Deposited particles for source %d, component %s: %10.3e/s', jsrc, jcomp, res_R[jsrc][jcomp][-1])
 
 #------
 # Plots
@@ -351,8 +342,8 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
 # Birth locations
         for jcol, jcomp in enumerate(comp_arr):
             ind = (j_comp == jcomp) & (j_nbi == jsrc)
-            axtop.plot(xtop[ind], ytop[ind], '%so' %colors[jcol], label=comp_lbl[jcomp])
-            axpol.plot(Rj[ind]  , zj[ind]  , '%so' %colors[jcol], label=comp_lbl[jcomp])
+            axtop.plot(xtop[ind], ytop[ind], '%so' %colors[jcol], label=comp_lbl[jcol])
+            axpol.plot(Rj[ind]  , zj[ind]  , '%so' %colors[jcol], label=comp_lbl[jcol])
 
         axtop.legend(loc=2, numpoints=1, prop={'size': 8})
         axpol.legend(loc=2, numpoints=1, prop={'size': 8})
@@ -419,12 +410,12 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
         figDep.text(0.33, 0.95, '%s, t =%6.3f s' %(runid, t_birth), ha='center')
         figDep.subplots_adjust(left=0.05, bottom=0.1, right=0.98, top=0.92)
         jsplot = 1
-        for jcomp in comp_arr:
+        for jcol, jcomp in enumerate(comp_arr):
             zgrid = dep_matrix[jsrc][jcomp]
             ind = np.where(zgrid == 0)
             zgrid[ind] = None
             axpol = figDep.add_subplot(1, n_comp, jsplot, aspect='equal')
-            axpol.set_title('%s energy' %comp_lbl[jcomp], fontsize=fsize)
+            axpol.set_title('%s energy' %comp_lbl[jcol], fontsize=fsize)
             axpol.set_xlim(xpol_lim)
             axpol.set_ylim(ypol_lim)
             ctr = axpol.contourf(r_grid.T, z_grid.T, zgrid)
@@ -443,9 +434,9 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
         canvasAtt = FigureCanvas(figAtt)
         figAtt.subplots_adjust(left=0.05, bottom=0.2, right=0.98, top=0.9)
         jsplot = 1
-        for jcomp in comp_arr:
+        for jcol, jcomp in enumerate(comp_arr):
             axatt = figAtt.add_subplot(1, n_comp, jsplot)
-            axatt.set_title('%s energy' %comp_lbl[jcomp], fontsize=fsize)
+            axatt.set_title('%s energy' %comp_lbl[jcol], fontsize=fsize)
             axatt.set_xlabel('R [cm]', fontsize=fsize)
             axatt.set_ylabel('NBI attenuation', fontsize=fsize)
             axatt.plot(R_grid, res_R[jsrc][jcomp])

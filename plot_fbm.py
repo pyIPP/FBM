@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 __author__  = 'Giovanni Tardini (Tel. +49 89 3299-1898)'
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 __date__    = '29.05.2025'
 
 import os, sys, logging, webbrowser
@@ -26,6 +26,17 @@ except:
 import read_ac, config
 from plots import contourPlotRZ, plotTrapped, clear_layout, plotLost, plotBirth
 
+fmt = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s: %(message)s', '%H:%M:%S')
+logger = logging.getLogger('FBM')
+if len(logger.handlers) == 0:
+    hnd = logging.StreamHandler()
+    hnd.setFormatter(fmt)
+    logger.addHandler(hnd)
+
+#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
+
+logger.info('Using version %s', __version__)
 
 os.environ['BROWSER'] = '/usr/bin/firefox'
 
@@ -211,7 +222,7 @@ class FBM(QMainWindow):
         btneut = self.cv['BTNT2_DD']
         bbneut = self.cv['BBNT2_DD']
         if (np.max(btneut) == 0) and (np.max(bbneut) == 0):
-            print('Zero neutrons')
+            logger.error('Zero neutrons')
             return
         btneut[btneut == 0] = np.nan # for plotting
         bbneut[bbneut == 0] = np.nan # for plotting

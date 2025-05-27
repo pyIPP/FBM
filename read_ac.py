@@ -1,8 +1,16 @@
-import os
+import os, logging
 import numpy as np
 import parse_ac, mom2rz
 
+fmt = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s: %(message)s', '%H:%M:%S')
+logger = logging.getLogger('readAC')
+if len(logger.handlers) == 0:
+    hnd = logging.StreamHandler()
+    hnd.setFormatter(fmt)
+    logger.addHandler(hnd)
+
 iso_d  = {(1, 1): 'H', (2, 1) : 'D', (3, 1): 'T', (3, 2): 'HE3', (4, 2): 'HE4'}
+
 
 class READ_FBM:
 
@@ -36,7 +44,7 @@ class READ_FBM:
         self.nshot  = fbm_d['NSHOT']
         self.bmvol  = fbm_d['BMVOL'][:n_cells]
         vol = 1.e-6*np.sum(self.bmvol)
-        print('Volume is %8.4f m^-3' %vol)
+        logger.info('Volume is %8.4f m^-3', vol)
 
         rho_lab = np.zeros(n_cells, dtype=int)      # rho index, takes values 0:n_zones-1
 
@@ -54,7 +62,6 @@ class READ_FBM:
             nthsurf = 201
         thbdy1 = np.pi
 
-        print('N cells', n_cells, n_zones)
         nthe_tr, nrho_tr = fbm_d['RSURF1'].shape
         nrho_step1 = nrho_tr//n_zones
         self.r_surf = 100*fbm_d['RSURF1'][:, ::nrho_step1].T
@@ -103,7 +110,6 @@ class READ_FBM:
 
         self.thsurf = np.linspace(thbdy0, thbdy1, nthsurf)
         self.xsurf = np.linspace(0, 1, nxsurf)
-        print('Nrho step2', nrho_step2, nrho_step1, nrho_tr, nxsurf, n_zones)
         self.rsurf = np.zeros((nxsurf, nthsurf))
         self.zsurf = np.zeros((nxsurf, nthsurf))
         rcos = fbm_d['RMC'][(nrho_step2-1):: nrho_step2, :n_mom, 0] #rho, nmom, cos/sin
@@ -191,7 +197,6 @@ class READ_FBM:
             iso_lbl  = iso_d[(mass, charge)]
 
             spc_lbl = '%s_%s' %(iso_lbl, prod_lbl)
-            print(spc_lbl)
 
             self.species.append(spc_lbl)
             self.bdens2.append(fbm_d['BDENS2'][:n_cells, jspec])
@@ -199,14 +204,14 @@ class READ_FBM:
             self.e_d [spc_lbl] = fbm_d['EFBM' ][:, jspec]
             self.eb_d[spc_lbl] = fbm_d['EFBMB'][:, jspec]
             self.a_d[spc_lbl] = np.linspace(-1, 1, num=n_pit)
-            (indx, )=np.where(jspec+1==fbm_d['SPECIES_LOST'])
+            (indx, )= np.where(jspec+1==fbm_d['SPECIES_LOST'])
             self.gtimelost[spc_lbl]  = fbm_d['GTIME_LOST'][indx]
-            self.wghtlost[spc_lbl]  = fbm_d['WGHT_LOST'][indx]
-            self.rmjionlost[spc_lbl]  = fbm_d['RMJION_LOST'][indx]
+            self.wghtlost[spc_lbl]   = fbm_d['WGHT_LOST'][indx]
+            self.rmjionlost[spc_lbl] = fbm_d['RMJION_LOST'][indx]
             self.yyionlost[spc_lbl]  = fbm_d['YYION_LOST'][indx]
             self.xksidlost[spc_lbl]  = fbm_d['XKSID_LOST'][indx]
-            self.yzelost[spc_lbl]  = fbm_d['YZE_LOST'][indx]
-            self.ynbscelost[spc_lbl]  = fbm_d['YNBSCE_LOST'][indx]
+            self.yzelost[spc_lbl]    = fbm_d['YZE_LOST'][indx]
+            self.ynbscelost[spc_lbl] = fbm_d['YNBSCE_LOST'][indx]
             self.gooselost[spc_lbl]  = fbm_d[ 'GOOSE_LOST'][indx]
              
 # Trapped particles
@@ -246,11 +251,11 @@ class READ_FBM:
             self.n_tot[spc_lbl] = np.sum(self.bdens[spc_lbl]*vol_zone)
             if self.n_tot[spc_lbl] > 0:
                 trap_tot = np.sum(self.btrap[spc_lbl]*vol_zone)
-                print('Trapped #%12.4e    Total #%12.4e    Fraction %12.4e' %(trap_tot, self.n_tot[spc_lbl], trap_tot/self.n_tot[spc_lbl]))
-                print('Volume averaged fast ion density #12.4e m^-3' %(self.n_tot[spc_lbl]/vol))
+                logger.info('Trapped #%12.4e    Total #%12.4e    Fraction %12.4e', trap_tot, self.n_tot[spc_lbl], trap_tot/self.n_tot[spc_lbl])
+                logger.info('Volume averaged fast ion density #12.4e m^-3', self.n_tot[spc_lbl]/vol)
                 self.int_en_pit_frac_trap[spc_lbl] = int_en_pit_trap/self.int_en_pit[spc_lbl]
             else:
-                print( 'WARNING! FBM data missing in input file')
+                logger.error( 'WARNING! FBM data missing in input file')
         
         self.bdens2 = np.array(self.bdens2)
 
