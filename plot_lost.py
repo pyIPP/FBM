@@ -1,6 +1,5 @@
 #/p/transpusers/mgorelen/work/AUGD/41385M01/41385M01.DATA1
 import numpy as np
-import pandas as pd
 from scipy.io import netcdf_file
 try:
     import Tkinter as tk
@@ -118,14 +117,9 @@ def get_lost(runid, fbm, topframe=None):
 
         frame_source = tk.Frame(nbsource)
         lbl = jsrc
-        
-        nblost = ttk.Notebook(frame_source, name='nblost')
-        nblost.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-        
-        frame_lost = tk.Frame(nblost)
 
         fig_lost = Figure(figsize=(14., 8.45), dpi=100)
-        can_lost = FigureCanvasTkAgg(fig_lost, master=frame_lost)
+        can_lost = FigureCanvasTkAgg(fig_lost, master=frame_source)
         can_lost._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         fig_lost.clf()
         fig_lost.subplots_adjust(left=0.05, bottom=0.08, right=0.97, top=0.97, \
@@ -216,12 +210,10 @@ def get_lost(runid, fbm, topframe=None):
             axpol.legend(loc=2, numpoints=1, prop={'size': 10})
             jsplot += 1
 
-        toolbar = nt2tk(can_lost, frame_lost)
+        toolbar = nt2tk(can_lost, frame_source)
         toolbar.update()
 
 # Add tabs
-
-        nblost.add(frame_lost, text='Lost location')
         nbsource.add(frame_source, text=lbl)
 
 

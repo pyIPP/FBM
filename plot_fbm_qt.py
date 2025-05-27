@@ -12,8 +12,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 from PyQt5.QtWidgets import QMainWindow, QWidget, QApplication, QGridLayout, QMenu, QAction, QLabel, QPushButton, QLineEdit, QCheckBox, QSpinBox, QDoubleSpinBox, QFileDialog, QRadioButton, QButtonGroup, QTabWidget, QVBoxLayout, QHBoxLayout
-from PyQt5.QtGui import QPixmap, QIcon
-from PyQt5.QtCore import Qt, QRect, QSize, QLocale
+from PyQt5.QtCore import Qt, QRect, QLocale
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 try:
@@ -25,7 +24,7 @@ try:
 except:
     pass
 import read_ac, plot_birth, config, plot_lost
-from contourPlotRZ import contourPlotRZ
+from plots import contourPlotRZ, plotTrapped, clear_layout
 
 
 os.environ['BROWSER'] = '/usr/bin/firefox'
@@ -47,17 +46,6 @@ bdens_d = {'D_NBI': 'BDENS', 'H_NBI': 'BDENS', 'HE3_FUS': 'FDENS_3', \
 lframe_wid = 670
 rframe_wid = 800
 fsize = 12
-
-
-def clear_layout(layout):
-    while layout.count():
-        item = layout.takeAt(0)
-        widget = item.widget()
-        if widget is not None:
-            widget.setParent(None)
-            widget.deleteLater()
-        elif item.layout():  # In case it's a nested layout
-            clear_layout(item.layout())
 
 
 def about():
@@ -151,8 +139,8 @@ class FBM(QMainWindow):
 #-----------------
 # NBI losses
         qloss = QWidget()
-        loss_layout = QGridLayout()
-        qloss.setLayout(loss_layout)
+        self.lossLayout = QGridLayout()
+        qloss.setLayout(self.lossLayout)
         qtabs.addTab(qloss, 'Losses')
 
 #--------
@@ -201,13 +189,9 @@ class FBM(QMainWindow):
         tmp = fbmfile.split('.')
         runid = tmp[0]
         t_id = tmp[1][4:]
+
+# Read FBM
         self.fbmr = read_ac.READ_FBM(f_ac)
-
-# Read FBM 
-
-        self.species = []
-        for spc_lbl in self.fbmr.int_en_pit_frac_trap.keys():
-            self.species.append(spc_lbl)
 
 # Read CDF
         tr_file = '%s/%s.CDF' %(fbmdir, runid)
@@ -226,23 +210,23 @@ class FBM(QMainWindow):
         if (np.max(btneut) == 0) and (np.max(bbneut) == 0):
             print('Zero neutrons')
             return
-        indbt = (btneut == 0)
-        indbb = (btneut == 0)
-        btneut[indbt] = np.nan
-        bbneut[indbb] = np.nan
+        btneut[btneut == 0] = np.nan # for plotting
+        bbneut[bbneut == 0] = np.nan # for plotting
 
 #--------
 # Plots
 #--------
-
+  
+        nR = 100
+        nZ = 100
         self.r_grid, self.z_grid = np.meshgrid(
-        np.linspace(self.fbmr.r2d.min(), self.fbmr.r2d.max(), 100),
-        np.linspace(self.fbmr.z2d.min(), self.fbmr.z2d.max(), 100))
+        np.linspace(self.fbmr.r2d.min(), self.fbmr.r2d.max(), nR),
+        np.linspace(self.fbmr.z2d.min(), self.fbmr.z2d.max(), nZ))
 
         self.plotDistribution(self.distLayout)
 
 # Trapped particle fraction
-        self.plotTrapped(self.trapLayout)
+        plotTrapped(self.fbmr, self.r_grid, self.z_grid, self.trapLayout)
 
 # Neutron
         f_in = btneut
@@ -259,36 +243,6 @@ class FBM(QMainWindow):
             self.plot_fbm_cell(jcell)
 
 
-    def plotTrapped(self, trapLayout):
-
-        clear_layout(trapLayout)
-
-        trapTabs = QTabWidget()
-        trapTabs.setStyleSheet("QTabBar::tab { width: 120 }")
-        trapLayout.addWidget(trapTabs)
-        for spc_lbl in ('D_NBI', ): # hardcoded for now
-            qspec = QWidget()
-            trapTabs.addTab(qspec, spc_lbl)
-            tabLayout = QHBoxLayout()
-            qspec.setLayout(tabLayout)
-            trap_right_widget = QWidget()
-            trap_left_widget  = QWidget()
-            trap_left_layout  = QHBoxLayout()
-            trap_right_layout = QVBoxLayout()
-            trap_left_widget.setLayout(trap_left_layout)
-            trap_right_widget.setLayout(trap_right_layout)
-
-            figTrap = Figure()
-            canvasTrap = FigureCanvas(figTrap)
-            axtrap = figTrap.add_subplot(111, aspect='equal')
-            trap_left_layout.addWidget(canvasTrap)
-            tabLayout.addWidget(trap_left_widget)
-            tabLayout.addWidget(trap_right_widget)
-            f_in = self.fbmr.int_en_pit_frac_trap[spc_lbl]
-            contourPlotRZ(self.fbmr, figTrap, self.r_grid, self.z_grid, f_in, title='Trapped fast ion fraction')
-            canvasTrap.draw()
-    
-
     def plotDistribution(self, distLayout):
 
         clear_layout(distLayout)
@@ -297,7 +251,7 @@ class FBM(QMainWindow):
         distTabs.setStyleSheet("QTabBar::tab { width: 120 }")
         distLayout.addWidget(distTabs)
         self.figDist = {}
-        for spc_lbl in ('D_NBI', ): # hardcoded for now
+        for spc_lbl, f_in in self.fbmr.int_en_pit.items():
             qspec = QWidget()
             distTabs.addTab(qspec, spc_lbl)
             tabLayout = QHBoxLayout()
@@ -400,9 +354,9 @@ class FBM(QMainWindow):
             canvasBdens.draw()
 
 # FBM integrated over E, mu
-            f_in = self.fbmr.int_en_pit[spc_lbl]
             ax = contourPlotRZ(self.fbmr, self.figDist[spc_lbl], self.r_grid, self.z_grid, f_in, title=r'2D distribution, $\int\int$ dE dp.a.')
             self.cell_mark, = ax.plot([], [], 'ro')
+            self.currentSpecies = spc_lbl
             self.figDist[spc_lbl].canvas.mpl_connect('button_press_event', self.my_call)
 
 # Cell canvas in dist_right2_widget
@@ -422,12 +376,14 @@ class FBM(QMainWindow):
             dist_right3_layout.addWidget(toolbar)
             canvasCell.setFixedHeight(450)
             toolbar.setFixedHeight(50)
-            self.plot_fbm_cell(0, spc_lbl=spc_lbl)
+            self.currentSpecies = spc_lbl
+            self.plot_fbm_cell(0)
 
 
-    def plot_fbm_cell(self, jcell, spc_lbl='D_NBI'):
+    def plot_fbm_cell(self, jcell):
 
         self.figCell.clf()
+        spc_lbl = self.currentSpecies
         ax = self.figCell.add_subplot(111)
         self.figCell.subplots_adjust(left=0.11, bottom=0.23, right=0.85, top=0.95)
         ax.set_ylim((-1, 1))
