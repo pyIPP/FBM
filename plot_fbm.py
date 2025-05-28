@@ -13,7 +13,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 from PyQt5.QtWidgets import QMainWindow, QWidget, QApplication, QGridLayout, QMenu, QAction, QLabel, QCheckBox, QDoubleSpinBox, QFileDialog, QRadioButton, QButtonGroup, QTabWidget, QVBoxLayout, QHBoxLayout
 from PyQt5.QtCore import Qt, QRect, QLocale
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavTool
 
 try:
     import aug_sfutils as sf
@@ -53,9 +53,15 @@ bdens_d = {'D_NBI': 'BDENS', 'H_NBI': 'BDENS', 'HE3_FUS': 'FDENS_3', \
            'H_FUS': 'FDENS_P', 'T_FUS': 'FDENS_T', 'HE4_FUS': 'FDENS_4'}
 rblist = ['Single cell', 'Theta averaged', 'Volume averaged']
 
-lframe_wid = 670
-rframe_wid = 800
-fsize = 12
+yhead = 42
+widgetHeight = 36
+textWidth = 100
+fsize = 10
+fac = 0.58
+ywin = int(fac*1150)
+xwin = int(fac*1500)
+distRightCanHeight = int(fac*500)
+canCellHeight = int(fac*450)
 
 
 def about():
@@ -74,9 +80,6 @@ class FBM(QMainWindow):
 
         self.setLocale(usLocale)
 
-        xwin  = lframe_wid + rframe_wid
-        yhead = 44
-        ywin  = 1150
         qhead  = QWidget(self)
         qtabs  = QTabWidget(self)
         qhead.setGeometry(QRect(0,     0, xwin, yhead))
@@ -150,7 +153,6 @@ class FBM(QMainWindow):
 
         header_grid.addWidget(menubar, 0, 0, 1, 10)
 
-        self.setStyleSheet("QLabel { width: 4 }")
         self.setGeometry(10, 10, xwin, ywin)
         self.setWindowTitle('FBM viewer')
         self.show()
@@ -239,8 +241,8 @@ class FBM(QMainWindow):
             distTabs.addTab(qspec, spc_lbl)
             tabLayout = QHBoxLayout()
             qspec.setLayout(tabLayout)
-            dist_right_widget = QWidget()
             dist_left_widget  = QWidget()
+            dist_right_widget = QWidget()
             dist_left_layout  = QVBoxLayout()
             dist_right_layout = QVBoxLayout()
             dist_right1_widget = QWidget()
@@ -248,23 +250,20 @@ class FBM(QMainWindow):
             dist_right3_widget = QWidget()
             dist_left_widget.setLayout(dist_left_layout)
             dist_right_widget.setLayout(dist_right_layout)
-
             self.figDist[spc_lbl] = Figure()
-            self.figDist[spc_lbl].subplots_adjust(left=0.05, bottom=0.05, right=0.97, top=0.92)
+            self.figDist[spc_lbl].subplots_adjust(left=0.05, bottom=0.1, right=0.97, top=0.9)
             canvasDist = FigureCanvas(self.figDist[spc_lbl])
-            toolbar = NavigationToolbar(canvasDist)
+            toolbar = NavTool(canvasDist)
             dist_left_layout.addWidget(canvasDist)
-            dist_left_layout.addWidget(toolbar)
-            tabLayout.addWidget(dist_left_widget)
-            tabLayout.addWidget(dist_right_widget)
+            dist_left_layout.addWidget(toolbar, alignment=Qt.AlignBottom)
+            tabLayout.addWidget(dist_left_widget, 45)
+            tabLayout.addWidget(dist_right_widget, 55)
 # Right column
-            dist_right_layout.addWidget(dist_right1_widget)
-            dist_right_layout.addWidget(dist_right2_widget)
-            dist_right_layout.addWidget(dist_right3_widget)
+            dist_right_layout.addWidget(dist_right1_widget, 14)
+            dist_right_layout.addWidget(dist_right2_widget, 43)
+            dist_right_layout.addWidget(dist_right3_widget, 43)
 
 # Buttons in dist_right1_widget
-            widgetHeight = 38
-            textWidth = 100
             dist_right1_layout = QVBoxLayout()
             dist_right2_layout = QVBoxLayout()
             dist_right3_layout = QVBoxLayout()
@@ -273,8 +272,7 @@ class FBM(QMainWindow):
             dist_right3_widget.setLayout(dist_right3_layout)
 
             dist_right1_widget.setFixedHeight(4*widgetHeight + 5)
-            dist_right2_widget.setFixedHeight(400)
-            dist_right2_widget.setFixedHeight(500)
+            dist_right2_widget.setFixedHeight(distRightCanHeight)
             mouseLbl = QLabel('Right-mouse click on a cell for local FBM plot')
             buttons_widget = QWidget()
             buttons_layout = QHBoxLayout()
@@ -325,8 +323,10 @@ class FBM(QMainWindow):
             log_layout.addWidget(self.butt_d['logMax'])
             log_layout.addStretch()
 
-            for layout in dist_right_layout, dist_right1_layout, dist_right2_layout, dist_right3_layout:
+            for layout in dist_left_layout, dist_right_layout, dist_right1_layout, dist_right2_layout, dist_right3_layout, log_layout, energy_layout:
                 layout.setContentsMargins(0, 0, 0, 0)
+            for layout in dist_right1_layout, log_layout, energy_layout:
+                layout.setSpacing(0)
 # BDENS canvas in dist_right2_widget
 
             figBdens = Figure()
@@ -334,7 +334,7 @@ class FBM(QMainWindow):
 
 # Bdens
             axBdens = figBdens.add_subplot(111)
-            figBdens.subplots_adjust(left=0.1, bottom=0.25, right=0.97, top=0.95)
+            figBdens.subplots_adjust(left=0.1, bottom=0.3, right=0.97, top=0.9)
             if f_in is not None:
                 axBdens.plot(self.fbmr.rho_grid, self.fbmr.bdens[spc_lbl], 'r-', label='From FBM', linewidth=2.5)
                 axBdens.plot(self.cv['X'], self.cv[bdens_d[spc_lbl]], 'g-', label='From CDF', linewidth=2.5)
@@ -351,25 +351,24 @@ class FBM(QMainWindow):
                     for gc in gc_d.values():
                         ax.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
             else:
-                ax = contourPlotRZ(self.fbmr, self.figDist[spc_lbl], self.r_grid, self.z_grid, f_in, title=r'2D distribution, $\int\int$ dE dp.a.')
+                ax = contourPlotRZ(self.fbmr, self.figDist[spc_lbl], self.r_grid, self.z_grid, f_in, title=r'$\int$ f($\rho$, $\theta$, E, $\mu$) dE d$\mu$')
                 self.cell_mark, = ax.plot([], [], 'ro')
-            self.currentSpecies = spc_lbl
-            if f_in is not None:
+                self.currentSpecies = spc_lbl
                 self.figDist[spc_lbl].canvas.mpl_connect('button_press_event', self.my_call)
 
 # Cell canvas in dist_right2_widget
 
             self.figCell = Figure()
             canvasCell = FigureCanvas(self.figCell)
-            toolbar = NavigationToolbar(canvasCell)
+            toolbar = NavTool(canvasCell)
 
             for wid in mouseLbl, buttons_widget, energy_widget, log_widget:
                 dist_right1_layout.addWidget(wid)
                 wid.setFixedHeight(widgetHeight)
             dist_right2_layout.addWidget(canvasBdens)
             dist_right3_layout.addWidget(canvasCell)
-            dist_right3_layout.addWidget(toolbar)
-            canvasCell.setFixedHeight(450)
+            dist_right3_layout.addWidget(toolbar, alignment=Qt.AlignBottom)
+            canvasCell.setFixedHeight(canCellHeight)
             if f_in is not None:
                 self.plot_fbm_cell(0)
 
@@ -379,7 +378,7 @@ class FBM(QMainWindow):
         self.figCell.clf()
         spc_lbl = self.currentSpecies
         ax = self.figCell.add_subplot(111)
-        self.figCell.subplots_adjust(left=0.11, bottom=0.23, right=0.85, top=0.95)
+        self.figCell.subplots_adjust(left=0.11, bottom=0.3, right=0.85, top=0.9)
         ax.set_ylim((-1, 1))
         ax.set_xlabel('Energy [keV]', fontsize=fsize)
         ax.set_ylabel('Pitch angle' , fontsize=fsize)

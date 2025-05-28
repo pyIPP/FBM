@@ -2,7 +2,7 @@ import os, logging
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget, QTabWidget, QVBoxLayout, QHBoxLayout
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavTool
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from scipy.interpolate import griddata
 from scipy.io import netcdf_file
@@ -18,10 +18,10 @@ try:
 except:
     pass
 
-fsize = 12
+fsize = 10
 cellLinewidth = 0.5
-limLinewidth = 2.5
-titSize = 14
+limLinewidth = 2.0
+titSize = 10
 
 def clear_layout(layout):
     while layout.count():
@@ -91,19 +91,16 @@ def plotTrapped(fbm, r_grid, z_grid, trapLayout):
         figTrap = Figure()
         canvasTrap = FigureCanvas(figTrap)
         axtrap = figTrap.add_subplot(111, aspect='equal')
-        figTrap.subplots_adjust(left=0.32, bottom=0.08, right=0.72, top=0.92)
+        figTrap.subplots_adjust(left=0.32, bottom=0.1, right=0.72, top=0.92)
         contourPlotRZ(fbm, figTrap, r_grid, z_grid, f_in, title='Trapped fast ion fraction')
-        toolbar = NavigationToolbar(canvasTrap)
+        toolbar = NavTool(canvasTrap)
         tabLayout.addWidget(canvasTrap)
         tabLayout.addWidget(toolbar)
 
 
 def plotNeutrons(fbm, cv, r_grid, z_grid, neutLayout):
     clear_layout(neutLayout)
-    specTabs = QTabWidget()
-    specTabs.setStyleSheet("QTabBar::tab { width: 120 }")
-    neutLayout.addWidget(specTabs)
-    
+
     neut_right_widget = QWidget()
     neut_left_widget  = QWidget()
     neut_left_layout  = QVBoxLayout()
@@ -117,16 +114,18 @@ def plotNeutrons(fbm, cv, r_grid, z_grid, neutLayout):
     neutCanvas2 = FigureCanvas(figNeut2)
     axneut1 = figNeut1.add_subplot(111, aspect='equal')
     axneut2 = figNeut2.add_subplot(111, aspect='equal')
-    toolbar1 = NavigationToolbar(neutCanvas1)
-    toolbar2 = NavigationToolbar(neutCanvas2)
+    toolbar1 = NavTool(neutCanvas1)
+    toolbar2 = NavTool(neutCanvas2)
     neut_left_layout.addWidget(neutCanvas1)
     neut_left_layout.addWidget(toolbar1)
     neut_right_layout.addWidget(neutCanvas2)
     neut_right_layout.addWidget(toolbar2)
-    neutLayout.addWidget(neut_left_widget)
-    neutLayout.addWidget(neut_right_widget)
+    neutLayout.addWidget(neut_left_widget, 1)
+    neutLayout.addWidget(neut_right_widget, 1)
     btneut = cv['BTNT2_DD']
     bbneut = cv['BBNT2_DD']
+    for layout in neutLayout, neut_left_layout, neut_right_layout:
+        layout.setContentsMargins(0, 0, 0, 0)
     if (np.max(btneut) == 0) and (np.max(bbneut) == 0):
         logger.error('Zero neutrons')
         return
@@ -162,7 +161,7 @@ def plotLost(fbm, r_grid, z_grid, lossLayout):
         figLost = Figure()
         canvasLost = FigureCanvas(figLost)
         specTabs.addTab(qspec, spc_lbl)
-        figLost.subplots_adjust(left=0.05, bottom=0.08, right=0.99, top=0.97, wspace=0.2, hspace=0)
+        figLost.subplots_adjust(left=0.05, bottom=0.1, right=0.99, top=0.9, wspace=0.2, hspace=0.)
         figLost.text(0.5, 0.95, '%s Power losses for %s, t =%6.3f s ' %(spc_lbl, runid, tbm1), ha='center', fontsize=titSize)
 
         Rj = np.array(fbm.rmjionlost[spc_lbl])
@@ -219,7 +218,7 @@ def plotLost(fbm, r_grid, z_grid, lossLayout):
                            label='%s < Pwr < %s' %(round(np.float_power(10, p1), 2), \
                                                    round(np.float_power(10, p2), 2)), markersize=sizes[jpwr])
             axpol.legend(loc=2, numpoints=1, prop={'size': 10})
-        toolbar = NavigationToolbar(canvasLost)
+        toolbar = NavTool(canvasLost)
         tabLayout.addWidget(canvasLost)
         tabLayout.addWidget(toolbar)
 
@@ -316,9 +315,6 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
 # Plots
 #------
 
-    Rlbl = 'R [cm]'
-    zlbl = 'z [cm]'
-    fsize = 12
     colors = ('r', 'b', 'g', 'm', 'y')
 
     nrows = 2
@@ -348,7 +344,7 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
 #---------------------------
         figBirth = Figure()
         canvasBirth = FigureCanvas(figBirth)
-        figBirth.subplots_adjust(left=0.05, bottom=0.08, right=0.97, top=0.97, wspace=0.15, hspace=0.)
+        figBirth.subplots_adjust(left=0.05, bottom=0.1, right=0.97, top=0.9, wspace=0.15, hspace=0.24)
         figBirth.text(0.5, 0.95, '%s, t =%6.3f s, top view' %(runid, t_birth), ha='center')
         figBirth.text(0.5, 0.55, 'Poloidal section'  , ha='center')
 
@@ -378,11 +374,6 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
         axtop.plot(Rtor_out*cosp, Rtor_out*sinp, 'r-')
         axtop.plot(Rmaj*cosp, Rmaj*sinp, 'r--')
 
-        for irho in range(fbm.rsurf.shape[0]):
-            axpol.plot(fbm.rsurf[irho, :], fbm.zsurf[irho, :], 'r-', linewidth=0.1)
-        for jbar, myr in enumerate(fbm.rbar):
-            axpol.plot(myr, fbm.zbar[jbar], 'r-', linewidth=0.1)
-
 # For each species overplot 5 pitch angle range
 
         for jplot, jcomp in enumerate(comp_arr):
@@ -408,7 +399,7 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
             axtop.plot(Rtor_out*cosp, Rtor_out*sinp, 'r-')
             axtop.plot(Rmaj*cosp, Rmaj*sinp, 'r--')
 
-        toolbar = NavigationToolbar(canvasBirth)
+        toolbar = NavTool(canvasBirth)
         qbirth_layout.addWidget(canvasBirth)
         qbirth_layout.addWidget(toolbar)
 
@@ -420,7 +411,7 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
         figDep = Figure()
         canvasDep = FigureCanvas(figDep)
         figDep.text(0.33, 0.95, '%s, t =%6.3f s' %(runid, t_birth), ha='center')
-        figDep.subplots_adjust(left=0.05, bottom=0.1, right=0.98, top=0.92)
+        figDep.subplots_adjust(left=0.05, bottom=0.1, right=0.98, top=0.85)
         for jplot, jcomp in enumerate(comp_arr):
             zgrid = dep_matrix[jsrc][jcomp]
             ind = np.where(zgrid == 0)
@@ -431,15 +422,13 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
             figDep.colorbar(ctr, aspect=20)
             addGrids(fbm, axpol)
 
-        canvasDep.setFixedHeight(550)
-        toolbar = NavigationToolbar(canvasDep)
-        qdep_layout.addWidget(canvasDep)
-        qdep_layout.addWidget(toolbar)
+#        canvasDep.setFixedHeight(550)
+        toolbar1 = NavTool(canvasDep)
 
 # Attenutation
         figAtt = Figure()
         canvasAtt = FigureCanvas(figAtt)
-        figAtt.subplots_adjust(left=0.05, bottom=0.2, right=0.98, top=0.9)
+        figAtt.subplots_adjust(left=0.05, bottom=0.05, right=0.98, top=0.8)
         for jplot, jcomp in enumerate(comp_arr):
             axatt = figAtt.add_subplot(1, n_comp, jplot+1)
             axatt.set_title('%s energy' %comp_lbl[jplot], fontsize=fsize)
@@ -447,6 +436,8 @@ def plotBirth(fbm, r_grid, z_grid, birthLayout):
             axatt.set_ylabel('NBI attenuation', fontsize=fsize)
             axatt.plot(R_grid, res_R[jsrc][jcomp])
 
-        toolbar = NavigationToolbar(canvasAtt)
-        qdep_layout.addWidget(canvasAtt)
-        qdep_layout.addWidget(toolbar)
+        toolbar2 = NavTool(canvasAtt)
+        qdep_layout.addWidget(canvasDep, 70)
+        qdep_layout.addWidget(toolbar1, 3)
+        qdep_layout.addWidget(canvasAtt, 38)
+        qdep_layout.addWidget(toolbar2, 3)
