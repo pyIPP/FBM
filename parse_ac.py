@@ -19,12 +19,12 @@ def parse_ac(f_ac, list_read=None, list_no=None):
     ac_d['time']   = float(tmp[2])
     ac_d['encode'] = int(tmp[3])
 
-    for jlin in range(nlin):
-        line = lines[jlin]
-        if line[0] != '*': # skip data line, look for next medata line
-            continue
+    line_numbers = [i for i, line in enumerate(lines) if line.startswith('*')]
+    n_star = len(line_numbers)
+    for j, jlin in enumerate(line_numbers):
+        line = lines[jlin].strip()
         pieces = line.split()
-        desc = pieces[0].strip()
+        desc = pieces[0]
         dtyp = desc[1]
         if dtyp == 'C':
             continue
@@ -33,11 +33,11 @@ def parse_ac(f_ac, list_read=None, list_no=None):
         if ndim == 0: # scalars, values on the same line
             str64 = pieces[2]
             if dtyp == 'L':
-                ac_d[lbl] = str64.strip().upper() == 'T'
+                ac_d[lbl] = str64 == 'T'
             elif dtyp == 'I':
                 ac_d[lbl] = b64conv.tra2int(str64)
             elif dtyp == 'R':
-                ac_d[lbl] = b64conv.tra2flt(str64)
+                ac_d[lbl] = -b64conv.tra2flt(str64)
             elif dtyp == 'D':
                 ac_d[lbl] = b64conv.tra2dbl(str64)
             else:
@@ -53,25 +53,19 @@ def parse_ac(f_ac, list_read=None, list_no=None):
             line = lines[jlin+1].strip()
             pieces = line.split()
             size = [b64conv.tra2int(sval) for sval in pieces]
-            line_arr = []
-            for lin in lines[jlin+2: ]:
-                if lin[0] == '*':
-                    break
-                line_arr.append(lin.strip())
+            if j == n_star-1:
+                line_arr = lines[jlin+2: ]
+            else:
+                line_arr = lines[jlin+2: line_numbers[j+1]]
             if dtyp == 'L':
-                strval = ''.join(line_arr).upper()
+                strval = ''.join(line_arr)
                 ac_d[lbl] = np.array(list(strval)) == 'T'
             elif dtyp == 'I':
                 words = ' '.join(line_arr).replace('-',' -').split()
-                datarr = b64conv.base64_to_int_vec(words)
+                datarr = [b64conv.tra2int(word) for word in words]
                 ac_d[lbl] = np.array(datarr, dtype=np.int64)
-            elif dtyp in ('R', 'D'):
-                if dtyp == 'R':
-                    strlen = 6
-                    nptype = np.float32
-                else:
-                    strlen = 12
-                    nptype = np.float64
+            elif dtyp == 'R':
+                strlen = 6
                 datarr = []
                 for lin in line_arr:
                     str_arr = [lin[start:start+strlen] for start in range(0, len(lin), strlen)]
@@ -83,11 +77,23 @@ def parse_ac(f_ac, list_read=None, list_no=None):
                         elif len(sval.strip()) < strlen:
                             datarr.append(0)
                         else:
-                            if dtyp == 'R':
-                                datarr.append(b64conv.tra2flt(sval))
-                            else:
-                                datarr.append(b64conv.tra2dbl(sval))
-                ac_d[lbl] = np.array(datarr, dtype=nptype)
+                            datarr.append(b64conv.tra2flt(sval))
+                ac_d[lbl] = -np.array(datarr, dtype=np.float32)
+            elif dtyp == 'D':
+                strlen = 12
+                datarr = []
+                for lin in line_arr:
+                    str_arr = [lin[start:start+strlen] for start in range(0, len(lin), strlen)]
+                    for sval in str_arr:
+                        if sval[0] == '_':
+                            zstr = sval[3:]
+                            n_zero = b64conv.tra2int(zstr)
+                            datarr.extend(n_zero*[0])
+                        elif len(sval.strip()) < strlen:
+                            datarr.append(0)
+                        else:
+                            datarr.append(b64conv.tra2dbl(sval))
+                ac_d[lbl] = np.array(datarr, dtype=np.float64)
         if ndim > 1:
             ac_d[lbl] = ac_d[lbl].reshape(size[::-1]).T
 
@@ -112,8 +118,8 @@ if __name__ == '__main__':
 
     mylist = ['FBM', 'BDENS']
     t1 = time.time()
-#    fbm_d = parse_ac(f_ac, list_no=list_no)
-    fbm_d = parse_ac(f_ac, list_read=mylist)
+    fbm_d = parse_ac(f_ac, list_no=list_no)
+#    fbm_d = parse_ac(f_ac, list_read=mylist)
     t2 = time.time()
     print(t2-t1)
 #    for key in fbm_d:

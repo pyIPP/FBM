@@ -17,23 +17,15 @@ def tra2int(sint):
     num = sum(char2pos[char] * (64 ** i) for i, char in enumerate(reversed(sint)))
     return sign * num
 
-def base64_to_int_vec(strs):
-    def decode_one(s):
-        s = s.strip()
-        sign = -1 if s.startswith('-') else 1
-        if s[0] in '+-':
-            s = s[1:]
-        return sign * sum(char2pos[c] * (64 ** i) for i, c in enumerate(reversed(s)))
-    return [decode_one(s) for s in strs]
-
 def tra2flt(sflt, fmt='>f'):
     str_ieee = tra2ieee(sflt) + '=='
     sval = base64.b64decode(str_ieee.encode())
-    num = struct.unpack_from(fmt, sval)[0]
-    return -num #TRANSP convention
+    return struct.unpack_from(fmt, sval)[0]
 
 def tra2dbl(sdbl):
-    (exp, ic1, ic2) = base64_to_int_vec((sdbl[:2], sdbl[2:7], sdbl[7:12]))
+    exp = tra2int(sdbl[ : 2])
+    ic1 = tra2int(sdbl[2: 7])
+    ic2 = tra2int(sdbl[7:12])
     if exp > 1000:
         exp -= 1000
         sgn = 1
