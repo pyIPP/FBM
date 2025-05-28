@@ -1,35 +1,32 @@
 import numpy as np
 import b64conv
 
-def parse_ac(f_ac, list_read=None, list_no=None):
+def decoder(f_ac, list_read=None, list_no=None):
 
     f = open(f_ac, 'r')
     lines = f.readlines()
     f.close()
 
-    lines = [line.strip() for line in lines if (line.strip() != '')]
+    lines = [line.strip() for line in lines if line.strip()]
+    nlin = len(lines)
+    indStars = [i for i, line in enumerate(lines) if line.startswith('*')]
+    n_star = len(indStars)
 
     ac_d = {}
-
-    nlin = len(lines)
-
     tmp = lines[0].split()
     ac_d['runid']  = tmp[0]
     ac_d['t_id']   = int(tmp[1])
     ac_d['time']   = float(tmp[2])
     ac_d['encode'] = int(tmp[3])
 
-    line_numbers = [i for i, line in enumerate(lines) if line.startswith('*')]
-    n_star = len(line_numbers)
-    for j, jlin in enumerate(line_numbers):
-        line = lines[jlin].strip()
-        pieces = line.split()
+    for j, jlin in enumerate(indStars):
+        pieces = lines[jlin].split()
         desc = pieces[0]
         dtyp = desc[1]
-        if dtyp == 'C':
+        if dtyp == 'C': # skip complex data
             continue
         ndim = int(desc[2])
-        lbl = pieces[1].strip()
+        lbl = pieces[1]
         if ndim == 0: # scalars, values on the same line
             str64 = pieces[2]
             if dtyp == 'L':
@@ -37,7 +34,7 @@ def parse_ac(f_ac, list_read=None, list_no=None):
             elif dtyp == 'I':
                 ac_d[lbl] = b64conv.tra2int(str64)
             elif dtyp == 'R':
-                ac_d[lbl] = -b64conv.tra2flt(str64)
+                ac_d[lbl] = b64conv.tra2flt(str64)
             elif dtyp == 'D':
                 ac_d[lbl] = b64conv.tra2dbl(str64)
             else:
@@ -50,13 +47,12 @@ def parse_ac(f_ac, list_read=None, list_no=None):
             else:
                 if list_no is not None and lbl in list_no:
                     continue
-            line = lines[jlin+1].strip()
-            pieces = line.split()
-            size = [b64conv.tra2int(sval) for sval in pieces]
+
             if j == n_star-1:
                 line_arr = lines[jlin+2: ]
             else:
-                line_arr = lines[jlin+2: line_numbers[j+1]]
+                line_arr = lines[jlin+2: indStars[j+1]]
+
             if dtyp == 'L':
                 strval = ''.join(line_arr)
                 ac_d[lbl] = np.array(list(strval)) == 'T'
@@ -78,7 +74,7 @@ def parse_ac(f_ac, list_read=None, list_no=None):
                             datarr.append(0)
                         else:
                             datarr.append(b64conv.tra2flt(sval))
-                ac_d[lbl] = -np.array(datarr, dtype=np.float32)
+                ac_d[lbl] = np.array(datarr, dtype=np.float32)
             elif dtyp == 'D':
                 strlen = 12
                 datarr = []
@@ -94,7 +90,10 @@ def parse_ac(f_ac, list_read=None, list_no=None):
                         else:
                             datarr.append(b64conv.tra2dbl(sval))
                 ac_d[lbl] = np.array(datarr, dtype=np.float64)
+
         if ndim > 1:
+            pieces = lines[jlin+1].split()
+            size = [b64conv.tra2int(sval) for sval in pieces]
             ac_d[lbl] = ac_d[lbl].reshape(size[::-1]).T
 
     return ac_d
@@ -118,8 +117,9 @@ if __name__ == '__main__':
 
     mylist = ['FBM', 'BDENS']
     t1 = time.time()
-    fbm_d = parse_ac(f_ac, list_no=list_no)
-#    fbm_d = parse_ac(f_ac, list_read=mylist)
+#    fbm_d = decoder(f_ac)
+    fbm_d = decoder(f_ac, list_no=list_no)
+#    fbm_d = decoder(f_ac, list_read=mylist)
     t2 = time.time()
     print(t2-t1)
 #    for key in fbm_d:

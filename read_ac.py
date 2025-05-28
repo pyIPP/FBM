@@ -1,6 +1,6 @@
 import os, logging
 import numpy as np
-import parse_ac, mom2rz
+import decodeAC, mom2rz
 
 fmt = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s: %(message)s', '%H:%M:%S')
 logger = logging.getLogger('readAC')
@@ -28,7 +28,7 @@ class READ_FBM:
             'XKSID_LOST', 'YNBIEN_LOST', 'YNBSCE_LOST', 'YYION_LOST', 'YZE_LOST',
             'GTIME_LOST', 'GTIME1_LOST', 'GTIME2_LOST']
 
-        fbm_d = parse_ac.parse_ac(f_ac, list_read=list_read)
+        fbm_d = decodeAC.decoder(f_ac, list_read=list_read)
 
 # Dimensions
         n_cells = fbm_d['NFBZNSI']

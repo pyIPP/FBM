@@ -20,7 +20,7 @@ def tra2int(sint):
 def tra2flt(sflt, fmt='>f'):
     str_ieee = tra2ieee(sflt) + '=='
     sval = base64.b64decode(str_ieee.encode())
-    return struct.unpack_from(fmt, sval)[0]
+    return -struct.unpack_from(fmt, sval)[0] # TRANSP sign convention
 
 def tra2dbl(sdbl):
     exp = tra2int(sdbl[ : 2])
