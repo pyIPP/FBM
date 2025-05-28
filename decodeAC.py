@@ -27,7 +27,7 @@ def decoder(f_ac, list_read=None, list_no=None):
             continue
         ndim = int(desc[2])
         lbl = pieces[1]
-        if ndim == 0: # scalars, values on the same line
+        if ndim == 0: # scalars, value on the same line
             str64 = pieces[2]
             if dtyp == 'L':
                 ac_d[lbl] = str64 == 'T'
@@ -63,32 +63,28 @@ def decoder(f_ac, list_read=None, list_no=None):
             elif dtyp == 'R':
                 strlen = 6
                 datarr = []
-                for lin in line_arr:
-                    str_arr = [lin[start:start+strlen] for start in range(0, len(lin), strlen)]
-                    for sval in str_arr:
-                        if sval[0] == '_':
-                            zstr = sval[3:]
-                            n_zero = b64conv.tra2int(zstr)
-                            datarr.extend(n_zero*[0])
-                        elif len(sval.strip()) < strlen:
-                            datarr.append(0)
-                        else:
-                            datarr.append(b64conv.tra2flt(sval))
+                str_arr = [lin[start:start+strlen] for lin in line_arr for start in range(0, len(lin), strlen)]
+                for sval in str_arr:
+                    if sval[0] == '_':
+                        n_zero = b64conv.tra2int(sval[3:])
+                        datarr.extend(n_zero*[0])
+                    elif len(sval.strip()) < strlen:
+                        datarr.append(0)
+                    else:
+                        datarr.append(b64conv.tra2flt(sval))
                 ac_d[lbl] = np.array(datarr, dtype=np.float32)
             elif dtyp == 'D':
                 strlen = 12
                 datarr = []
-                for lin in line_arr:
-                    str_arr = [lin[start:start+strlen] for start in range(0, len(lin), strlen)]
-                    for sval in str_arr:
-                        if sval[0] == '_':
-                            zstr = sval[3:]
-                            n_zero = b64conv.tra2int(zstr)
-                            datarr.extend(n_zero*[0])
-                        elif len(sval.strip()) < strlen:
-                            datarr.append(0)
-                        else:
-                            datarr.append(b64conv.tra2dbl(sval))
+                str_arr = [lin[start:start+strlen] for lin in line_arr for start in range(0, len(lin), strlen)]
+                for sval in str_arr:
+                    if sval[0] == '_':
+                        n_zero = b64conv.tra2int(sval[3:])
+                        datarr.extend(n_zero*[0])
+                    elif len(sval.strip()) < strlen:
+                        datarr.append(0)
+                    else:
+                        datarr.append(b64conv.tra2dbl(sval))
                 ac_d[lbl] = np.array(datarr, dtype=np.float64)
 
         if ndim > 1:
