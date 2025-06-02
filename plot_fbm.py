@@ -11,7 +11,7 @@ import matplotlib as mpl
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-from PyQt5.QtWidgets import QMainWindow, QWidget, QApplication, QGridLayout, QMenu, QAction, QLabel, QCheckBox, QDoubleSpinBox, QFileDialog, QRadioButton, QButtonGroup, QTabWidget, QVBoxLayout, QHBoxLayout
+from PyQt5.QtWidgets import QMainWindow, QWidget, QApplication, QGridLayout, QMenu, QAction, QLabel, QCheckBox, QDoubleSpinBox, QFileDialog, QRadioButton, QButtonGroup, QTabWidget, QVBoxLayout, QHBoxLayout, QSizePolicy, QDesktopWidget
 from PyQt5.QtCore import Qt, QRect, QLocale
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavTool
 
@@ -54,15 +54,10 @@ bdens_d = {'D_NBI': 'BDENS', 'H_NBI': 'BDENS', 'HE3_FUS': 'FDENS_3', \
 rblist = ['Single cell', 'Theta averaged', 'Volume averaged']
 
 yhead = 42
-widgetHeight = 36
+widgetHeight1 = 32
+widgetHeight2 = 36
 textWidth = 100
 fsize = 10
-fac = 0.58
-ywin = int(fac*1150)
-xwin = int(fac*1500)
-distRightCanHeight = int(fac*500)
-canCellHeight = int(fac*450)
-
 
 def about():
     webbrowser.open('http://www.aug.ipp.mpg.de/aug/manuals/transp/fbm/plot_fbm.html')
@@ -73,10 +68,11 @@ class FBM(QMainWindow):
 
     def __init__(self):
 
-        if sys.version_info[0] == 3:
-            super().__init__()
-        else:
-            super(QMainWindow, self).__init__()
+        super(QMainWindow, self).__init__()
+        sizeObject = QDesktopWidget().screenGeometry(-1)
+        ywin = int(0.93*sizeObject.height())
+        xwin = int(1.2*ywin)
+        print(" Screen size : "  + str(sizeObject.height()) + "x"  + str(sizeObject.width()))   
 
         self.setLocale(usLocale)
 
@@ -253,6 +249,7 @@ class FBM(QMainWindow):
             self.figDist[spc_lbl] = Figure()
             self.figDist[spc_lbl].subplots_adjust(left=0.05, bottom=0.1, right=0.97, top=0.9)
             canvasDist = FigureCanvas(self.figDist[spc_lbl])
+            canvasDist.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             toolbar = NavTool(canvasDist)
             dist_left_layout.addWidget(canvasDist)
             dist_left_layout.addWidget(toolbar, alignment=Qt.AlignBottom)
@@ -271,8 +268,6 @@ class FBM(QMainWindow):
             dist_right2_widget.setLayout(dist_right2_layout)
             dist_right3_widget.setLayout(dist_right3_layout)
 
-            dist_right1_widget.setFixedHeight(4*widgetHeight + 5)
-            dist_right2_widget.setFixedHeight(distRightCanHeight)
             mouseLbl = QLabel('Right-mouse click on a cell for local FBM plot')
             buttons_widget = QWidget()
             buttons_layout = QHBoxLayout()
@@ -331,10 +326,11 @@ class FBM(QMainWindow):
 
             figBdens = Figure()
             canvasBdens = FigureCanvas(figBdens)
+            canvasBdens.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
 # Bdens
             axBdens = figBdens.add_subplot(111)
-            figBdens.subplots_adjust(left=0.1, bottom=0.3, right=0.97, top=0.9)
+            figBdens.subplots_adjust(left=0.1, bottom=0.1, right=0.97, top=0.92)
             if f_in is not None:
                 axBdens.plot(self.fbmr.rho_grid, self.fbmr.bdens[spc_lbl], 'r-', label='From FBM', linewidth=2.5)
                 axBdens.plot(self.cv['X'], self.cv[bdens_d[spc_lbl]], 'g-', label='From CDF', linewidth=2.5)
@@ -348,6 +344,8 @@ class FBM(QMainWindow):
             if f_in is None:
                 if 'gc_d' in globals():
                     ax = self.figDist[spc_lbl].add_subplot(111, aspect='equal')
+                    ax.set_xlabel('R [cm]')
+                    ax.set_ylabel('Z [cm]')
                     for gc in gc_d.values():
                         ax.plot(m2cm*gc.r, m2cm*gc.z, 'b-')
             else:
@@ -364,11 +362,14 @@ class FBM(QMainWindow):
 
             for wid in mouseLbl, buttons_widget, energy_widget, log_widget:
                 dist_right1_layout.addWidget(wid)
-                wid.setFixedHeight(widgetHeight)
+                if wid in (mouseLbl, buttons_widget):
+                    wid.setFixedHeight(widgetHeight1)
+                else:
+                    wid.setFixedHeight(widgetHeight2)
             dist_right2_layout.addWidget(canvasBdens)
             dist_right3_layout.addWidget(canvasCell)
             dist_right3_layout.addWidget(toolbar, alignment=Qt.AlignBottom)
-            canvasCell.setFixedHeight(canCellHeight)
+            canvasCell.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             if f_in is not None:
                 self.plot_fbm_cell(0)
 
@@ -378,7 +379,7 @@ class FBM(QMainWindow):
         self.figCell.clf()
         spc_lbl = self.currentSpecies
         ax = self.figCell.add_subplot(111)
-        self.figCell.subplots_adjust(left=0.11, bottom=0.3, right=0.85, top=0.9)
+        self.figCell.subplots_adjust(left=0.11, bottom=0.12, right=0.85, top=0.92)
         ax.set_ylim((-1, 1))
         ax.set_xlabel('Energy [keV]', fontsize=fsize)
         ax.set_ylabel('Pitch angle' , fontsize=fsize)
