@@ -13,11 +13,11 @@ def decoder(f_ac, list_read=None, list_no=None):
     n_star = len(indStars)
 
     ac_d = {}
-    tmp = lines[0].split()
-    ac_d['runid']  = tmp[0]
-    ac_d['t_id']   = int(tmp[1])
-    ac_d['time']   = float(tmp[2])
-    ac_d['encode'] = int(tmp[3])
+    piecesFirst = lines[0].split()
+    ac_d['runid']  = piecesFirst[0]
+    ac_d['t_id']   = int(piecesFirst[1])
+    ac_d['time']   = float(piecesFirst[2])
+    ac_d['encode'] = int(piecesFirst[3])
 
     for j, jlin in enumerate(indStars):
         pieces = lines[jlin].split()
@@ -40,7 +40,7 @@ def decoder(f_ac, list_read=None, list_no=None):
             else:
                 ac_d[lbl] = None
         else: # ndim > 0, start collecting data from the following line
-# If there is a list_read, list_no is ignored
+# If the keyword list_read is set, the list_no argument is ignored
             if list_read is not None:
                 if lbl not in list_read:
                     continue
@@ -65,7 +65,7 @@ def decoder(f_ac, list_read=None, list_no=None):
                 datarr = []
                 str_arr = [lin[start:start+strlen] for lin in line_arr for start in range(0, len(lin), strlen)]
                 for sval in str_arr:
-                    if sval[0] == '_':
+                    if sval.startswith('_'):
                         n_zero = b64conv.tra2int(sval[3:])
                         datarr.extend(n_zero*[0])
                     elif len(sval.strip()) < strlen:
@@ -78,7 +78,7 @@ def decoder(f_ac, list_read=None, list_no=None):
                 datarr = []
                 str_arr = [lin[start:start+strlen] for lin in line_arr for start in range(0, len(lin), strlen)]
                 for sval in str_arr:
-                    if sval[0] == '_':
+                    if sval.startswith('_'):
                         n_zero = b64conv.tra2int(sval[3:])
                         datarr.extend(n_zero*[0])
                     elif len(sval.strip()) < strlen:
