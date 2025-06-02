@@ -1,6 +1,21 @@
 import numpy as np
 import b64conv
 
+
+def decodeFloatArray(line_arr, strlen=12, transpMap=b64conv.tra2dbl):
+    datarr = []
+    str_arr = [lin[start:start+strlen] for lin in line_arr for start in range(0, len(lin), strlen)]
+    for sval in str_arr:
+        if sval.startswith('_'):
+            n_zero = b64conv.tra2int(sval[3:])
+            datarr.extend(n_zero*[0])
+        elif len(sval.strip()) < strlen:
+            datarr.append(0)
+        else:
+            datarr.append(transpMap(sval))
+    return datarr
+
+
 def decoder(f_ac, list_read=None, list_no=None):
 
     f = open(f_ac, 'r')
@@ -61,32 +76,11 @@ def decoder(f_ac, list_read=None, list_no=None):
                 datarr = [b64conv.tra2int(word) for word in words]
                 ac_d[lbl] = np.array(datarr, dtype=np.int64)
             elif dtyp == 'R':
-                strlen = 6
-                datarr = []
-                str_arr = [lin[start:start+strlen] for lin in line_arr for start in range(0, len(lin), strlen)]
-                for sval in str_arr:
-                    if sval.startswith('_'):
-                        n_zero = b64conv.tra2int(sval[3:])
-                        datarr.extend(n_zero*[0])
-                    elif len(sval.strip()) < strlen:
-                        datarr.append(0)
-                    else:
-                        datarr.append(b64conv.tra2flt(sval))
+                datarr = decodeFloatArray(line_arr, strlen=6, transpMap=b64conv.tra2flt)
                 ac_d[lbl] = np.array(datarr, dtype=np.float32)
             elif dtyp == 'D':
-                strlen = 12
-                datarr = []
-                str_arr = [lin[start:start+strlen] for lin in line_arr for start in range(0, len(lin), strlen)]
-                for sval in str_arr:
-                    if sval.startswith('_'):
-                        n_zero = b64conv.tra2int(sval[3:])
-                        datarr.extend(n_zero*[0])
-                    elif len(sval.strip()) < strlen:
-                        datarr.append(0)
-                    else:
-                        datarr.append(b64conv.tra2dbl(sval))
+                datarr = decodeFloatArray(line_arr)
                 ac_d[lbl] = np.array(datarr, dtype=np.float64)
-
         if ndim > 1:
             pieces = lines[jlin+1].split()
             size = [b64conv.tra2int(sval) for sval in pieces]
@@ -105,7 +99,7 @@ if __name__ == '__main__':
 
     run_dir = '%s/%s/%s' %(config.tr_clientDir, shot, tail)
     f_ac  = '%s/%s.DATA1'    %(run_dir, runid)
-    list_no = ['FBM_PTCL', 'NSTAT_TRACK_XJA', \
+    list_no = ['NSTAT_TRACK_XJA', \
         'TRACK_DE_FLR' , 'TRACK_DR_FLR', 'TRACK_DVPV_FLR', 'TRACK_DZ_FLR', \
         'TRACK_EINJ'   , 'TRACK_PDEP'  , 'TRACK_PHIIN'   , 'TRACK_PHIOUT', \
         'TRACK_RIN'    , 'TRACK_ROUT'  , 'TRACK_SINJ'    , 'TRACK_TIME'  , \
